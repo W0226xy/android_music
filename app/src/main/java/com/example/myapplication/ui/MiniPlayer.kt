@@ -21,22 +21,22 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplication.data.MusicUiState
 
 @Composable
-fun MiniPlayer(
-    uiState: MusicUiState,
-    onMiniPlayerClick: () -> Unit,
-    onPlayPauseClick: () -> Unit
+fun MiniPlayer(//compose组件
+    uiState: MusicUiState,//当前播放器状态
+    onMiniPlayerClick: () -> Unit,//点击迷你播放器时触发
+    onPlayPauseClick: () -> Unit//点击播放-暂停按钮触发
 ) {
-    val currentSong = uiState.currentSong ?: return
+    val currentSong = uiState.currentSong ?: return//从 uiState 中取出当前歌曲如果当前歌曲为空，就直接返回，不显示 MiniPlayer
 
-    Surface(
-        shadowElevation = 8.dp,
+    Surface(//可以理解为一个带背景和主题的盒子(外层容器)
+        shadowElevation = 8.dp,//排版设置
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                onMiniPlayerClick()
+                onMiniPlayerClick()//用户点击底部迷你播放器调用函数（会展示详情播放页）
             }
     ) {
-        Row(
+        Row(//横向布局
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()

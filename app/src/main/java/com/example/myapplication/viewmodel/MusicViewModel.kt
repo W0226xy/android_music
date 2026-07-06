@@ -18,6 +18,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+//ViewModel，逻辑和状态管理:负责接收 View 层传来的事件，并执行对应业务逻辑，同时维护 UI 状态。
+//播放歌曲
+//暂停歌曲
+//切换上一首 / 下一首
+//切换播放模式
+//更新播放进度
+//调节音量
+//解析并同步歌词
+//收藏歌曲
+//更新 MusicUiState
 class MusicViewModel(
     application: Application
 ) : AndroidViewModel(application) {
@@ -26,13 +36,13 @@ class MusicViewModel(
 
     private val repository = MusicRepository()
 
-    private var mediaPlayer: MediaPlayer? = null
+    private var mediaPlayer: MediaPlayer? = null//播放 / 暂停 / seek / 获取进度 / 获取时长
 
-    private var lyricLines: List<LyricLine> = emptyList()
+    private var lyricLines: List<LyricLine> = emptyList()//保存解析后的歌词：(timeMs, text)
 
-    private var isUserSeeking: Boolean = false
+    private var isUserSeeking: Boolean = false//是否用户在拖动进度条，用户拖动进度条时，自动更新把 UI 覆盖掉
 
-    private val songs: List<Song> = repository.getSongs()
+    private val songs: List<Song> = repository.getSongs()//UI状态
 
     private val _uiState = MutableStateFlow(
         MusicUiState(
@@ -51,16 +61,16 @@ class MusicViewModel(
         startProgressLoop()
     }
 
-    fun onSearchTextChange(text: String) {
-        _uiState.value = _uiState.value.copy(
-            searchText = text
+    fun onSearchTextChange(text: String) {//更新ui状态
+        _uiState.value = _uiState.value.copy(//.value拿到容器里的值，
+            searchText = text//searchText搜索框文本
         )
     }
 
     fun playSong(song: Song) {
-        mediaPlayer?.release()
+        mediaPlayer?.release()//（1）释放旧播放器
 
-        val player = MediaPlayer.create(context, song.audioResId)
+        val player = MediaPlayer.create(context, song.audioResId)//2）创建新播放器
 
         if (player == null) {
             _uiState.value = _uiState.value.copy(
@@ -71,20 +81,20 @@ class MusicViewModel(
 
         mediaPlayer = player
 
-        loadLyrics(song)
+        loadLyrics(song)//3）加载歌词
 
-        player.setVolume(
+        player.setVolume(//设置音量
             _uiState.value.volume,
             _uiState.value.volume
         )
 
-        player.setOnCompletionListener {
+        player.setOnCompletionListener {//播放完成监听，播完自动下一首 / 循环 / 单曲循环
             handleSongCompletion(song)
         }
 
-        player.start()
+        player.start()//开始播放
 
-        _uiState.value = _uiState.value.copy(
+        _uiState.value = _uiState.value.copy(//更新ui状态
             currentSongId = song.id,
             isPlaying = true,
             currentPosition = 0,
@@ -92,7 +102,7 @@ class MusicViewModel(
         )
     }
 
-    fun playOrPause() {
+    fun playOrPause() {//播放暂停逻辑
         val player = mediaPlayer
         val state = _uiState.value
         val currentSong = state.currentSong ?: return
@@ -116,7 +126,7 @@ class MusicViewModel(
         }
     }
 
-    fun playNextSong() {
+    fun playNextSong() {//下一首（根据播放模式设置播放id）
         val state = _uiState.value
 
         val nextSong = if (state.playMode == PlayMode.SHUFFLE && songs.size > 1) {
@@ -135,7 +145,7 @@ class MusicViewModel(
         playSong(nextSong)
     }
 
-    fun playPreviousSong() {
+    fun playPreviousSong() {//上一首，类似下一首逻辑
         val state = _uiState.value
 
         val previousSong = if (state.playMode == PlayMode.SHUFFLE && songs.size > 1) {
@@ -154,13 +164,13 @@ class MusicViewModel(
         playSong(previousSong)
     }
 
-    fun changePlayMode() {
+    fun changePlayMode() {//改变播放模式
         _uiState.value = _uiState.value.copy(
             playMode = _uiState.value.playMode.nextMode()
         )
     }
 
-    fun changeVolume(value: Float) {
+    fun changeVolume(value: Float) {//设置音量
         val newVolume = value.coerceIn(0f, 1f)
 
         mediaPlayer?.setVolume(newVolume, newVolume)
@@ -170,7 +180,7 @@ class MusicViewModel(
         )
     }
 
-    fun onProgressChange(value: Float) {
+    fun onProgressChange(value: Float) {//用户拖动进度条
         isUserSeeking = true
 
         val newPosition = value.toInt()
@@ -182,7 +192,7 @@ class MusicViewModel(
         updateLyric(newPosition)
     }
 
-    fun onSeekFinished() {
+    fun onSeekFinished() {//松手更新ui
         val position = _uiState.value.currentPosition
 
         mediaPlayer?.seekTo(position.coerceAtLeast(0))
@@ -205,7 +215,7 @@ class MusicViewModel(
         )
     }
 
-    private fun handleSongCompletion(song: Song) {
+    private fun handleSongCompletion(song: Song) {//播放完成，先看播放模式，决定下一首播放id，更新播放状态
         val state = _uiState.value
 
         when (state.playMode) {
@@ -242,12 +252,12 @@ class MusicViewModel(
         }
     }
 
-    private fun loadLyrics(song: Song) {
+    private fun loadLyrics(song: Song) {//加载歌词
         lyricLines = LyricParser.parseLrc(context, song.lyricResId)
         updateLyric(0)
     }
 
-    private fun updateLyric(position: Int) {
+    private fun updateLyric(position: Int) {//更新歌词
         if (lyricLines.isEmpty()) {
             _uiState.value = _uiState.value.copy(
                 currentLyric = "暂无歌词",
@@ -258,27 +268,28 @@ class MusicViewModel(
             return
         }
 
-        val currentIndex = lyricLines.indexOfLast {
+        val currentIndex = lyricLines.indexOfLast {//从 lyricLines 中找到最后一个 timeMs 小于等于当前播放进度 position 的歌词下标
             position >= it.timeMs
         }
 
-        val safeCurrentIndex = if (currentIndex >= 0) {
+        val safeCurrentIndex = if (currentIndex >= 0) {//还没到第一句歌词处理（比如第一句歌词在10s，当前是3s）
             currentIndex
         } else {
             0
         }
 
+        //设置5行歌词（当前在唱的，前两句，后两句）
         val startIndex = (safeCurrentIndex - 2).coerceAtLeast(0)
         val endIndex = (startIndex + 4).coerceAtMost(lyricLines.lastIndex)
         val realStartIndex = (endIndex - 4).coerceAtLeast(0)
 
-        val lyricWindow = lyricLines
+        val lyricWindow = lyricLines//歌词窗口
             .subList(realStartIndex, endIndex + 1)
             .map { it.text }
 
-        val activeIndex = safeCurrentIndex - realStartIndex
+        val activeIndex = safeCurrentIndex - realStartIndex//计算当前高亮歌词在窗口中的位置（正在唱的歌词）
 
-        val currentLyric = if (currentIndex >= 0) {
+        val currentLyric = if (currentIndex >= 0) {//计算当前歌词文本
             lyricLines[currentIndex].text
         } else {
             "等待歌词..."
@@ -290,7 +301,7 @@ class MusicViewModel(
             ""
         }
 
-        _uiState.value = _uiState.value.copy(
+        _uiState.value = _uiState.value.copy(//更新ui状态
             currentLyric = currentLyric,
             nextLyric = nextLyric,
             lyricWindow = lyricWindow,
@@ -298,8 +309,8 @@ class MusicViewModel(
         )
     }
 
-    private fun startProgressLoop() {
-        viewModelScope.launch {
+    private fun startProgressLoop() {//进度条随着时间更新，每隔 500 毫秒，从 MediaPlayer 获取当前播放进度和总时长， 然后更新到 MusicUiState 中，同时更新歌词。
+        viewModelScope.launch {//开启一个后台循环任务，不阻塞主线程
             while (isActive) {
                 val player = mediaPlayer
 
@@ -307,13 +318,13 @@ class MusicViewModel(
                     val position = player.currentPosition
                     val duration = player.duration
 
-                    if (!isUserSeeking) {
+                    if (!isUserSeeking) {//防止当前用户在拖进度条
                         _uiState.value = _uiState.value.copy(
                             currentPosition = position,
                             duration = duration
                         )
 
-                        updateLyric(position)
+                        updateLyric(position)//更新进度条位置
                     }
                 }
 

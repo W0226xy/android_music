@@ -22,18 +22,18 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplication.data.MusicUiState
 import com.example.myapplication.data.Song
 
-@Composable
-fun MusicListScreen(
+@Composable//MusicListScreen = 一个“显示音乐列表的界面”，uiState 决定显示什么，onXXX 决定用户点击后做什么。
+fun MusicListScreen(//Compose 页面函数,1. uiState：界面显示所需的状态数据 2. onXXX：用户操作时触发的回调函数
     uiState: MusicUiState,
-    onSearchTextChange: (String) -> Unit,
-    onSongClick: (Song) -> Unit,
-    onPlayClick: (Song) -> Unit,
-    onFavoriteClick: (Song) -> Unit,
-    onMiniPlayerClick: () -> Unit,
-    onPlayPauseClick: () -> Unit,
-    onPlayModeClick: () -> Unit
+    onSearchTextChange: (String) -> Unit,//搜索框内容变化时调用。
+    onSongClick: (Song) -> Unit,//点击某首歌曲条目时调用。
+    onPlayClick: (Song) -> Unit,//点击某首歌的播放按钮时调用，用来播放指定歌曲。
+    onFavoriteClick: (Song) -> Unit,//点击收藏按钮时调用，用来收藏或取消收藏歌曲。
+    onMiniPlayerClick: () -> Unit,//点击底部迷你播放器时调用，一般用于进入播放详情页。
+    onPlayPauseClick: () -> Unit,//点击底部迷你播放器里的播放 / 暂停按钮时调用。
+    onPlayModeClick: () -> Unit//点击播放模式按钮时调用
 ) {
-    Scaffold(
+    Scaffold(//标准页面布局容器
         bottomBar = {
             MiniPlayer(
                 uiState = uiState,
@@ -61,9 +61,9 @@ fun MusicListScreen(
                 modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
             )
 
-            TextField(
-                value = uiState.searchText,
-                onValueChange = onSearchTextChange,
+            TextField(//TextField输入框组件，参数value、onValueChange
+                value = uiState.searchText,//获取搜索框内容
+                onValueChange = onSearchTextChange,//用户输入时触发事件
                 label = {
                     Text("搜索歌曲或歌手")
                 },

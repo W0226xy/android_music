@@ -28,7 +28,7 @@ import com.example.myapplication.data.MusicUiState
 import com.example.myapplication.utils.formatTime
 
 @Composable
-fun PlayerDetailScreen(
+fun PlayerDetailScreen(//Compose 页面函数。
     uiState: MusicUiState,
     onBackClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
@@ -38,15 +38,15 @@ fun PlayerDetailScreen(
     onSeekFinished: () -> Unit,
     onVolumeChange: (Float) -> Unit
 ) {
-    val currentSong = uiState.currentSong ?: return
+    val currentSong = uiState.currentSong ?: return//从 uiState 中获取当前歌曲,如果当前歌曲为空，就直接返回，不显示页面
 
-    val maxProgress = if (uiState.duration > 0) {
+    val maxProgress = if (uiState.duration > 0) {//计算进度条最大值(歌曲总时常)
         uiState.duration.toFloat()
     } else {
         1f
     }
 
-    val progress = uiState.currentPosition
+    val progress = uiState.currentPosition//计算当前播放进度
         .coerceIn(0, if (uiState.duration > 0) uiState.duration else 1)
         .toFloat()
 

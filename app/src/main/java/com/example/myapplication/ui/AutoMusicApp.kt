@@ -8,7 +8,10 @@ import androidx.compose.runtime.setValue
 import com.example.myapplication.data.MusicUiState
 import com.example.myapplication.data.Song
 
-@Composable
+//View 层只做两件事：显示 uiState
+//把用户操作通过 onXXX 回调传出去
+
+@Composable//Compose 的核心思想：状态变了，界面自动刷新
 fun AutoMusicApp(
     uiState: MusicUiState,
     onSearchTextChange: (String) -> Unit,
@@ -27,7 +30,7 @@ fun AutoMusicApp(
         mutableStateOf(false)
     }
 
-    if (showPlayerDetail) {
+    if (showPlayerDetail) {//然后根据内部的 showPlayerDetail 状态决定显示歌曲列表页还是播放详情页。
         PlayerDetailScreen(
             uiState = uiState,
             onBackClick = {
@@ -43,7 +46,7 @@ fun AutoMusicApp(
     } else {
         MusicListScreen(
             uiState = uiState,
-            onSearchTextChange = onSearchTextChange,
+            onSearchTextChange = onSearchTextChange,//onSearchTextChange = musicViewModel::onSearchTextChange函数转发
             onSongClick = onSongClick,
             onPlayClick = onPlayClick,
             onFavoriteClick = onFavoriteClick,

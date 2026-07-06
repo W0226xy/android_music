@@ -20,12 +20,12 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplication.data.Song
 
 @Composable
-fun SongItem(
+fun SongItem(//单个歌曲条目组件（显示歌曲名、专辑、歌手、当前是否正在播放，是否喜欢）
     song: Song,
     isCurrentSong: Boolean,
     isPlaying: Boolean,
     isFavorite: Boolean,
-    onSongClick: () -> Unit,
+    onSongClick: () -> Unit,//点击按钮后触发事件
     onPlayClick: () -> Unit,
     onFavoriteClick: () -> Unit
 ) {
