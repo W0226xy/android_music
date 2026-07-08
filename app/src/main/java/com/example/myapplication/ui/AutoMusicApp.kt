@@ -34,7 +34,8 @@ fun AutoMusicApp(
     onPlayModeClick: () -> Unit,
     onFavoriteClick: (Song) -> Unit,
     onClearPlaybackHistory: () -> Unit,
-    onRemoveSongFromHistory: (Song) -> Unit
+    onRemoveSongFromHistory: (Song) -> Unit,
+    onLyricClick: (String) -> Unit
 ) {
     var currentScreen by rememberSaveable {
         mutableStateOf(AppScreen.MUSIC_LIST)
@@ -72,7 +73,8 @@ fun AutoMusicApp(
                 onProgressChange = onProgressChange,
                 onSeekFinished = onSeekFinished,
                 onVolumeChange = onVolumeChange,
-                onPlaybackSpeedChange = onPlaybackSpeedChange
+                onPlaybackSpeedChange = onPlaybackSpeedChange,
+                onLyricClick = onLyricClick
             )
         }
         

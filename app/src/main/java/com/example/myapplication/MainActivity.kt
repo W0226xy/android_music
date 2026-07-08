@@ -44,7 +44,8 @@ class MainActivity : ComponentActivity() {
                     onPlayModeClick = musicViewModel::changePlayMode,
                     onFavoriteClick = musicViewModel::toggleFavorite,
                     onClearPlaybackHistory = musicViewModel::clearPlaybackHistory,
-                    onRemoveSongFromHistory = musicViewModel::removeSongFromHistory
+                    onRemoveSongFromHistory = musicViewModel::removeSongFromHistory,
+                    onLyricClick = musicViewModel::onLyricClick
                 )
             }
         }

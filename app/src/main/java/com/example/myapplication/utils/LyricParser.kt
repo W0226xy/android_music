@@ -12,27 +12,63 @@ object LyricParser {//读取歌词文件和时间戳
     fun parseLrc(context: Context, @RawRes lyricResId: Int): List<LyricLine> {
         val lrcText = readRawText(context, lyricResId)
 
-        val timeRegex = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
+        // 支持多种LRC时间戳格式：
+        // 1. 标准格式: [mm:ss.xxx] 或 [mm:ss:xxx]
+        // 2. 特殊格式: [m:s.ms.xx] (如 [0:9.970.00], [2:15.520.00])
+        //    实际含义: [分:秒.毫秒.xx] (例如: [0:9.970.00] = 0分 + 9秒 + 970毫秒 = 9970毫秒)
+        val standardTimeRegex = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
+        val specialTimeRegex = Regex("""\[(\d+):(\d+)\.(\d+)(?:\.(\d+))?]""")
+
         val lyricLines = mutableListOf<LyricLine>()
 
         lrcText.lines().forEach { line ->
-            val matches = timeRegex.findAll(line).toList()
-            val text = line.replace(timeRegex, "").trim()
+            // 先尝试特殊格式
+            var matches = specialTimeRegex.findAll(line).toList()
+            var text = line.replace(specialTimeRegex, "").trim()
+            var useSpecialFormat = true
+
+            // 如果特殊格式没有匹配，尝试标准格式
+            if (matches.isEmpty()) {
+                matches = standardTimeRegex.findAll(line).toList()
+                text = line.replace(standardTimeRegex, "").trim()
+                useSpecialFormat = false
+            }
 
             if (matches.isNotEmpty() && text.isNotBlank()) {
                 matches.forEach { match ->
-                    val minute = match.groupValues[1].toInt()
-                    val second = match.groupValues[2].toInt()
+                    val timeMs = if (useSpecialFormat) {
+                        // 特殊格式: [m:s.ms.xx] (分:秒.毫秒.xx)
+                        // 例如: [0:9.970.00] = 0分 + 9秒 + 970毫秒 = 9970毫秒
+                        //       [2:15.520.00] = 2分 + 15秒 + 520毫秒 = 135520毫秒
+                        val minute = match.groupValues[1].toInt()
+                        val second = match.groupValues[2].toInt()
+                        val millisPart = match.groupValues[3]  // 毫秒部分，如 970 表示 970毫秒
+                        
+                        // 计算毫秒：根据长度决定
+                        val millis = when {
+                            millisPart.isEmpty() -> 0
+                            millisPart.length == 1 -> millisPart.toInt() * 100
+                            millisPart.length == 2 -> millisPart.toInt() * 10
+                            millisPart.length >= 3 -> millisPart.take(3).toInt()
+                            else -> 0
+                        }
+                        
+                        minute * 60 * 1000 + second * 1000 + millis
+                    } else {
+                        // 标准格式: [mm:ss.xxx] 或 [mm:ss:xxx]
+                        val minute = match.groupValues[1].toInt()
+                        val second = match.groupValues[2].toInt()
 
-                    val fractionText = match.groupValues.getOrNull(3).orEmpty()
-                    val millis = when (fractionText.length) {
-                        0 -> 0
-                        1 -> fractionText.toInt() * 100
-                        2 -> fractionText.toInt() * 10
-                        else -> fractionText.take(3).toInt()
+                        val fractionText = match.groupValues.getOrNull(3).orEmpty()
+                        val millis = when (fractionText.length) {
+                            0 -> 0
+                            1 -> fractionText.toInt() * 100
+                            2 -> fractionText.toInt() * 10
+                            else -> fractionText.take(3).toInt()
+                        }
+
+                        minute * 60 * 1000 + second * 1000 + millis
                     }
-
-                    val timeMs = minute * 60 * 1000 + second * 1000 + millis
 
                     lyricLines.add(
                         LyricLine(

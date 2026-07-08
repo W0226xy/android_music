@@ -7,9 +7,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +23,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -27,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplication.R
 import com.example.myapplication.data.MusicUiState
 import com.example.myapplication.utils.formatTime
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlayerDetailScreen(//Compose 页面函数。
@@ -38,7 +49,8 @@ fun PlayerDetailScreen(//Compose 页面函数。
     onProgressChange: (Float) -> Unit,
     onSeekFinished: () -> Unit,
     onVolumeChange: (Float) -> Unit,
-    onPlaybackSpeedChange: (Float) -> Unit
+    onPlaybackSpeedChange: (Float) -> Unit,
+    onLyricClick: (String) -> Unit
 ) {
     val currentSong = uiState.currentSong ?: return//从 uiState 中获取当前歌曲,如果当前歌曲为空，就直接返回，不显示页面
 
@@ -91,27 +103,74 @@ fun PlayerDetailScreen(//Compose 页面函数。
 
             Spacer(modifier = Modifier.weight(1f))
 
+            // 歌词滚动显示区域
+            val lazyListState = rememberLazyListState()
+            val coroutineScope = rememberCoroutineScope()
+            
+            // 当前播放的歌词在完整列表中的位置
+            val currentLyricIndex = remember {
+                derivedStateOf {
+                    uiState.fullLyricLines.indexOfFirst { it.contains(uiState.currentLyric) }
+                }
+            }
+            
+            // 当当前歌词索引变化时，自动滚动到该位置
+            LaunchedEffect(currentLyricIndex.value) {
+                if (currentLyricIndex.value >= 0 && uiState.isPlaying) {
+                    coroutineScope.launch {
+                        lazyListState.animateScrollToItem(
+                            index = currentLyricIndex.value,
+                            scrollOffset = 0
+                        )
+                    }
+                }
+            }
+            
+            // 歌词列表显示
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(2f)
+                    .heightIn(max = 300.dp)
             ) {
-                uiState.lyricWindow.forEachIndexed { index, lyric ->
-                    val isActive = index == uiState.activeLyricIndex
-
+                if (uiState.fullLyricLines.isNotEmpty()) {
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        items(uiState.fullLyricLines) { lyric ->
+                            val isActive = uiState.currentLyric.isNotEmpty() && lyric == uiState.currentLyric
+                            
+                            Text(
+                                text = lyric,
+                                fontSize = if (isActive) 20.sp else 16.sp,
+                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isActive) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .clickable { 
+                                        onLyricClick(lyric)
+                                    }
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp, horizontal = 12.dp)
+                            )
+                        }
+                    }
+                } else {
+                    // 如果没有歌词，显示提示信息
                     Text(
-                        text = lyric,
-                        fontSize = if (isActive) 22.sp else 15.sp,
-                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isActive) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        text = "暂无歌词",
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp, horizontal = 8.dp)
+                            .padding(vertical = 16.dp)
                     )
                 }
             }

@@ -14,6 +14,7 @@ data class MusicUiState(//音乐播放器当前界面状态
     val nextLyric: String = "",//下一句歌词
     val lyricWindow: List<String> = emptyList(),//歌词窗口
     val activeLyricIndex: Int = -1,//当前高亮歌词在 lyricWindow 里的下标
+    val fullLyricLines: List<String> = emptyList(),//完整歌词列表用于滚动显示
     val playbackHistory: List<Song> = emptyList(),//播放历史记录列表
     val playbackSpeed: Float = 1f//播放速度，默认为1倍速
 ) {

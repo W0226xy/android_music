@@ -92,10 +92,6 @@ class MusicViewModel(
             _uiState.value.volume
         )
 
-        // 设置播放速度
-        val playbackSpeed = _uiState.value.playbackSpeed
-        player.setPlaybackParams(player.playbackParams.setSpeed(playbackSpeed))
-
         player.setOnCompletionListener {//播放完成监听，播完自动下一首 / 循环 / 单曲循环
             handleSongCompletion(song)
         }
@@ -106,8 +102,12 @@ class MusicViewModel(
             currentSongId = song.id,
             isPlaying = true,
             currentPosition = 0,
-            duration = player.duration
+            duration = player.duration,
+            playbackSpeed = 1f//切换歌曲时重置播放倍速为1倍速
         )
+
+        // 设置播放速度为1倍速
+        player.setPlaybackParams(player.playbackParams.setSpeed(1f))
 
         // 添加到播放历史
         addToPlaybackHistory(song)
@@ -223,6 +223,26 @@ class MusicViewModel(
         isUserSeeking = false
     }
 
+    fun onLyricClick(lyricText: String) {
+        // 查找歌词对应的时间位置
+        val lyricLine = lyricLines.find { it.text == lyricText }
+        if (lyricLine != null) {
+            // 跳转到该歌词对应的时间位置
+            isUserSeeking = true
+            mediaPlayer?.seekTo(lyricLine.timeMs)
+            _uiState.value = _uiState.value.copy(
+                currentPosition = lyricLine.timeMs
+            )
+            updateLyric(lyricLine.timeMs)
+            isUserSeeking = false
+            
+            // 如果当前未播放，开始播放
+            if (!uiState.value.isPlaying) {
+                playOrPause()
+            }
+        }
+    }
+
     fun toggleFavorite(song: Song) {
         val state = _uiState.value
         val oldFavorites = state.favoriteSongIds
@@ -329,7 +349,8 @@ class MusicViewModel(
                 currentLyric = "暂无歌词",
                 nextLyric = "",
                 lyricWindow = listOf("暂无歌词"),
-                activeLyricIndex = 0
+                activeLyricIndex = 0,
+                fullLyricLines = emptyList()
             )
             return
         }
@@ -367,11 +388,15 @@ class MusicViewModel(
             ""
         }
 
+        // 生成完整的歌词列表用于滚动显示
+        val fullLyricLines = lyricLines.map { it.text }
+
         _uiState.value = _uiState.value.copy(//更新ui状态
             currentLyric = currentLyric,
             nextLyric = nextLyric,
             lyricWindow = lyricWindow,
-            activeLyricIndex = activeIndex
+            activeLyricIndex = activeIndex,
+            fullLyricLines = fullLyricLines
         )
     }
 
