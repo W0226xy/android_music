@@ -15,6 +15,7 @@ data class MusicUiState(//音乐播放器当前界面状态
     val lyricWindow: List<String> = emptyList(),//歌词窗口
     val activeLyricIndex: Int = -1,//当前高亮歌词在 lyricWindow 里的下标
     val fullLyricLines: List<String> = emptyList(),//完整歌词列表用于滚动显示
+    val currentLyricIndex: Int = -1,//当前歌词在完整列表中的索引
     val playbackHistory: List<Song> = emptyList(),//播放历史记录列表
     val playbackSpeed: Float = 1f//播放速度，默认为1倍速
 ) {
@@ -25,5 +26,5 @@ data class MusicUiState(//音乐播放器当前界面状态
         get() = songs.filter {//ignoreCase = true忽略大小写，根据歌曲名或者歌手找
             it.name.contains(searchText, ignoreCase = true) ||
                     it.singer.contains(searchText, ignoreCase = true)
-        }
+        }//it类似迭代器，表示songs里面的song
 }

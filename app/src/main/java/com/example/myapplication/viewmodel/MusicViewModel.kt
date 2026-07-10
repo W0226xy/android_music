@@ -49,12 +49,12 @@ class MusicViewModel(
     private val historyLimit = 100 // 最多记录100首歌曲
 
     private val _uiState = MutableStateFlow(//_uiState 是一个 MusicUiState 对象的容器，它包含整个音乐播放器的所有 UI 状态：
-        MusicUiState(
-            songs = songs,
-            currentSongId = songs.firstOrNull()?.id ?: 0
+        MusicUiState(//MutableStateFlow可变、可观察的状态持有者
+            songs = songs,//private val songs: List<Song>
+            currentSongId = songs.firstOrNull()?.id ?: 0//取第一首歌，空列表返回 `null`
         )
     )
-
+//私有 _uiState 供 ViewModel 内部修改，对外通过 uiState: StateFlow（第 58 行 .asStateFlow()）暴露只读版本
     val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
 
     init {
@@ -182,7 +182,7 @@ class MusicViewModel(
     }
 
     fun changeVolume(value: Float) {//设置音量
-        val newVolume = value.coerceIn(0f, 1f)
+        val newVolume = value.coerceIn(0f, 1f)//coerceIn确保某个值在一个闭区间范围内
 
         mediaPlayer?.setVolume(newVolume, newVolume)
 
@@ -241,6 +241,45 @@ class MusicViewModel(
                 playOrPause()
             }
         }
+    }
+
+    /**
+     * 快进10秒
+     */
+    fun seekForward10s() {
+        val player = mediaPlayer ?: return
+        val duration = player.duration
+        val currentPosition = player.currentPosition
+        
+        // 计算新位置：当前位置 + 10秒，不超过歌曲总时长
+        val newPosition = (currentPosition + 10000).coerceAtMost(duration)
+        
+        isUserSeeking = true
+        player.seekTo(newPosition)
+        _uiState.value = _uiState.value.copy(
+            currentPosition = newPosition
+        )
+        updateLyric(newPosition)
+        isUserSeeking = false
+    }
+
+    /**
+     * 后退10秒
+     */
+    fun seekBackward10s() {
+        val player = mediaPlayer ?: return
+        val currentPosition = player.currentPosition
+        
+        // 计算新位置：当前位置 - 10秒，不小于0
+        val newPosition = (currentPosition - 10000).coerceAtLeast(0)
+        
+        isUserSeeking = true
+        player.seekTo(newPosition)
+        _uiState.value = _uiState.value.copy(
+            currentPosition = newPosition
+        )
+        updateLyric(newPosition)
+        isUserSeeking = false
     }
 
     fun toggleFavorite(song: Song) {
@@ -309,7 +348,7 @@ class MusicViewModel(
                 mediaPlayer?.seekTo(0)
                 mediaPlayer?.start()
 
-                _uiState.value = state.copy(
+                _uiState.value = state.copy(//更新_uiState状态
                     currentPosition = 0,
                     isPlaying = true
                 )
@@ -317,20 +356,20 @@ class MusicViewModel(
 
             PlayMode.LIST_LOOP -> {
                 val currentIndex = songs.indexOfFirst { it.id == song.id }
-                val nextIndex = if (currentIndex == -1) {
-                    0
+                val nextIndex = if (currentIndex == -1) {//未找到匹配的歌曲，songs列表中没有id等于song.id
+                    0//返回第一首
                 } else {
-                    (currentIndex + 1) % songs.size
+                    (currentIndex + 1) % songs.size//获取下一首歌曲的index
                 }
 
-                playSong(songs[nextIndex])
+                playSong(songs[nextIndex])//播放index位置的歌曲
             }
 
             PlayMode.SHUFFLE -> {
-                val nextSong = if (songs.size == 1) {
+                val nextSong = if (songs.size == 1) {//看一下当前歌曲列表是不是只有一首音乐
                     song
                 } else {
-                    songs.filter { it.id != song.id }.random()
+                    songs.filter { it.id != song.id }.random()//过滤掉当前歌曲，然后随机找一个歌曲id进行播放
                 }
 
                 playSong(nextSong)
@@ -396,26 +435,27 @@ class MusicViewModel(
             nextLyric = nextLyric,
             lyricWindow = lyricWindow,
             activeLyricIndex = activeIndex,
-            fullLyricLines = fullLyricLines
+            fullLyricLines = fullLyricLines,
+            currentLyricIndex = if (currentIndex >= 0) currentIndex else 0
         )
     }
 
     private fun startProgressLoop() {//进度条随着时间更新，每隔 500 毫秒，从 MediaPlayer 获取当前播放进度和总时长， 然后更新到 MusicUiState 中，同时更新歌词。
-        viewModelScope.launch {//开启一个后台循环任务，不阻塞主线程
-            while (isActive) {
+        viewModelScope.launch {//在 ViewModel 的作用域内启动一个协程。当 ViewModel 销毁时，这个协程会被自动取消，避免内存泄漏。
+            while (isActive) {//协程还存在
                 val player = mediaPlayer
 
                 if (player != null) {
-                    val position = player.currentPosition
+                    val position = player.currentPosition//获取当前播放器应该在的播放位置和歌曲总时长
                     val duration = player.duration
 
                     if (!isUserSeeking) {//防止当前用户在拖进度条
-                        _uiState.value = _uiState.value.copy(
+                        _uiState.value = _uiState.value.copy(//更新播放器状态
                             currentPosition = position,
                             duration = duration
                         )
 
-                        updateLyric(position)//更新进度条位置
+                        updateLyric(position)//更新歌词
                     }
                 }
 

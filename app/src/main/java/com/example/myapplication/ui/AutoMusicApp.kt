@@ -27,6 +27,8 @@ fun AutoMusicApp(
     onPlayPauseClick: () -> Unit,
     onPreviousClick: () -> Unit,
     onNextClick: () -> Unit,
+    onSeekForwardClick: () -> Unit,
+    onSeekBackwardClick: () -> Unit,
     onProgressChange: (Float) -> Unit,
     onSeekFinished: () -> Unit,
     onVolumeChange: (Float) -> Unit,
@@ -60,7 +62,7 @@ fun AutoMusicApp(
                 }
             )
         }
-        
+
         AppScreen.PLAYER_DETAIL -> {
             PlayerDetailScreen(
                 uiState = uiState,
@@ -70,6 +72,8 @@ fun AutoMusicApp(
                 onPlayPauseClick = onPlayPauseClick,
                 onPreviousClick = onPreviousClick,
                 onNextClick = onNextClick,
+                onSeekForwardClick = onSeekForwardClick,
+                onSeekBackwardClick = onSeekBackwardClick,
                 onProgressChange = onProgressChange,
                 onSeekFinished = onSeekFinished,
                 onVolumeChange = onVolumeChange,
@@ -77,7 +81,7 @@ fun AutoMusicApp(
                 onLyricClick = onLyricClick
             )
         }
-        
+
         AppScreen.PLAYBACK_HISTORY -> {
             PlaybackHistoryScreen(
                 playbackHistory = uiState.playbackHistory,

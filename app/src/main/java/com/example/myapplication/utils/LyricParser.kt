@@ -8,7 +8,7 @@ import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
 
 object LyricParser {//读取歌词文件和时间戳
-
+//object只有一个单例
     fun parseLrc(context: Context, @RawRes lyricResId: Int): List<LyricLine> {
         val lrcText = readRawText(context, lyricResId)
 

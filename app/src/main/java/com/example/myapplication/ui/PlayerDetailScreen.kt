@@ -46,6 +46,8 @@ fun PlayerDetailScreen(//Compose 页面函数。
     onPlayPauseClick: () -> Unit,
     onPreviousClick: () -> Unit,
     onNextClick: () -> Unit,
+    onSeekForwardClick: () -> Unit,
+    onSeekBackwardClick: () -> Unit,
     onProgressChange: (Float) -> Unit,
     onSeekFinished: () -> Unit,
     onVolumeChange: (Float) -> Unit,
@@ -101,37 +103,37 @@ fun PlayerDetailScreen(//Compose 页面函数。
                 modifier = Modifier.padding(top = 4.dp)
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(0.5f))
 
             // 歌词滚动显示区域
             val lazyListState = rememberLazyListState()
             val coroutineScope = rememberCoroutineScope()
-            
+
             // 当前播放的歌词在完整列表中的位置
-            val currentLyricIndex = remember {
-                derivedStateOf {
-                    uiState.fullLyricLines.indexOfFirst { it.contains(uiState.currentLyric) }
-                }
-            }
-            
-            // 当当前歌词索引变化时，自动滚动到该位置
-            LaunchedEffect(currentLyricIndex.value) {
-                if (currentLyricIndex.value >= 0 && uiState.isPlaying) {
+            val currentLyricIndex = uiState.currentLyricIndex
+
+            // 当当前歌词索引变化且歌曲正在播放时，自动滚动到该位置
+            LaunchedEffect(currentLyricIndex, uiState.isPlaying) {
+                if (currentLyricIndex >= 0 && uiState.isPlaying) {
                     coroutineScope.launch {
+                        // 计算目标位置，使当前歌词在屏幕中央
+                        val visibleItemsCount = 5 // 大致可见的项目数
+                        val targetIndex = (currentLyricIndex - visibleItemsCount / 2).coerceAtLeast(0)
+                        
                         lazyListState.animateScrollToItem(
-                            index = currentLyricIndex.value,
+                            index = targetIndex,
                             scrollOffset = 0
                         )
                     }
                 }
             }
-            
+
             // 歌词列表显示
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(2f)
-                    .heightIn(max = 300.dp)
+                    .weight(3f)
+                    .heightIn(max = 400.dp)
             ) {
                 if (uiState.fullLyricLines.isNotEmpty()) {
                     LazyColumn(
@@ -141,10 +143,10 @@ fun PlayerDetailScreen(//Compose 页面函数。
                     ) {
                         items(uiState.fullLyricLines) { lyric ->
                             val isActive = uiState.currentLyric.isNotEmpty() && lyric == uiState.currentLyric
-                            
+
                             Text(
                                 text = lyric,
-                                fontSize = if (isActive) 20.sp else 16.sp,
+                                fontSize = if (isActive) 24.sp else 20.sp,
                                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isActive) {
                                     MaterialTheme.colorScheme.primary
@@ -153,11 +155,11 @@ fun PlayerDetailScreen(//Compose 页面函数。
                                 },
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier
-                                    .clickable { 
+                                    .clickable {
                                         onLyricClick(lyric)
                                     }
                                     .fillMaxWidth()
-                                    .padding(vertical = 6.dp, horizontal = 12.dp)
+                                    .padding(vertical = 8.dp, horizontal = 12.dp)
                             )
                         }
                     }
@@ -165,7 +167,7 @@ fun PlayerDetailScreen(//Compose 页面函数。
                     // 如果没有歌词，显示提示信息
                     Text(
                         text = "暂无歌词",
-                        fontSize = 18.sp,
+                        fontSize = 22.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
@@ -175,7 +177,7 @@ fun PlayerDetailScreen(//Compose 页面函数。
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(0.5f))
 
             Slider(
                 value = progress,
@@ -249,6 +251,19 @@ fun PlayerDetailScreen(//Compose 页面函数。
                 Spacer(modifier = Modifier.weight(1f))
 
                 IconButton(
+                    onClick = onSeekBackwardClick,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.bg_backward),
+                        contentDescription = "快退10秒",
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(0.5f))
+
+                IconButton(
                     onClick = onPreviousClick,
                     modifier = Modifier.size(48.dp)
                 ) {
@@ -287,6 +302,19 @@ fun PlayerDetailScreen(//Compose 页面函数。
                     Image(
                         painter = painterResource(id = R.drawable.down),
                         contentDescription = "下一首",
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(0.5f))
+
+                IconButton(
+                    onClick = onSeekForwardClick,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.bg_forward),
+                        contentDescription = "快进10秒",
                         modifier = Modifier.size(40.dp)
                     )
                 }

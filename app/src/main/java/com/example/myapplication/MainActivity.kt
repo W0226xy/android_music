@@ -37,6 +37,8 @@ class MainActivity : ComponentActivity() {
                     onPlayPauseClick = musicViewModel::playOrPause,
                     onPreviousClick = musicViewModel::playPreviousSong,
                     onNextClick = musicViewModel::playNextSong,
+                    onSeekForwardClick = musicViewModel::seekForward10s,
+                    onSeekBackwardClick = musicViewModel::seekBackward10s,
                     onProgressChange = musicViewModel::onProgressChange,
                     onSeekFinished = musicViewModel::onSeekFinished,
                     onVolumeChange = musicViewModel::changeVolume,
@@ -45,7 +47,7 @@ class MainActivity : ComponentActivity() {
                     onFavoriteClick = musicViewModel::toggleFavorite,
                     onClearPlaybackHistory = musicViewModel::clearPlaybackHistory,
                     onRemoveSongFromHistory = musicViewModel::removeSongFromHistory,
-                    onLyricClick = musicViewModel::onLyricClick
+                    onLyricClick = musicViewModel::onLyricClick,
                 )
             }
         }
