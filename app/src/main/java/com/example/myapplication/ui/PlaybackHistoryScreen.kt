@@ -3,6 +3,7 @@ package com.example.myapplication.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -70,10 +71,18 @@ fun PlaybackHistoryScreen(
                     }
                 },
                 actions = {
-                    if (playbackHistory.isNotEmpty()) {
-                        IconButton(onClick = { showClearDialog = true }) {
-                            Icon(Icons.Default.Clear, contentDescription = "清空历史")
-                        }
+                    TextButton(
+                        onClick = { showClearDialog = true },
+                        enabled = playbackHistory.isNotEmpty()
+                    ) {
+                        Text(
+                            text = "清空记录",
+                            color = if (playbackHistory.isNotEmpty()) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            }
+                        )
                     }
                 }
             )
