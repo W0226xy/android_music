@@ -22,6 +22,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme {
                 val uiState by musicViewModel.uiState.collectAsState()//让 Compose “监听” ViewModel 里的状态变化
+                //等价于val uiState: MusicUiState
+                //          get() = musicViewModel.uiState.collectAsState().value
+
                 //1.collectAsState() 会订阅 musicViewModel.uiState,相当于ui监听viewModel变化
                 //2.StateFlow 发出新值
                 //3.collectAsState 监听到 value 改变

@@ -1,18 +1,122 @@
+# Android Studio
+.idea/
+.gradle/
+build/
+captures/
+navigation/
+local.properties
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+*.iws
+*.ipr
+
+# Gradle
+.gradle/
+gradle-app.setting
+
+# Built application files
+*.apk
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+
+# Local configuration file (sdk path, etc)
 local.properties
 
-# Embedded git repository
-android_music
+# Log Files
+*.log
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Android Studio captures folder
+captures/
+
+# IntelliJ
+out/
+
+# Keystore files
+*.jks
+*.keystore
+
+# External native build folder
+.externalNativeBuild/
+.cxx/
+
+# Google Services (e.g. APIs or Firebase)
+google-services.json
+
+# Freeline
+freeline.py
+freeline/
+freeline_project_description.json
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/readme.md
+
+# Version control
+vcs.xml
+
+# lint
+lint/intermediates/
+lint/generated/
+lint/outputs/
+lint/tmp/
+# lint/reports/
+
+# Android Profiling
+*.hprof
+
+# OSX
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Linux
+*~
+
+# Backup files
+*.bak
+*.backup
+
+# Temporary files
+*.tmp
+*.temp
+
+# Log files
+*.log
+
+# Gradle cache
+.gradle/
+gradle-app.setting
+
+# Kotlin
+.kotlin/
+
+# Android Studio 3.6+
+.cxx/
+.externalNativeBuild/
+
+# VS Code
+.vscode/
+
+# Other
+*.orig
+*.rej
+*.swp
+*.swo
+*~

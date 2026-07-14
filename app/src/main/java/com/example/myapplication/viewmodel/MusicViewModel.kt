@@ -57,12 +57,12 @@ class MusicViewModel(
 //私有 _uiState 供 ViewModel 内部修改，对外通过 uiState: StateFlow（第 58 行 .asStateFlow()）暴露只读版本
     val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
 
-    init {
+    init {//按照声明顺序执行 属性初始化
         songs.firstOrNull()?.let { firstSong ->
-            loadLyrics(firstSong)
+            loadLyrics(firstSong)//加载歌词
         }
-
-        startProgressLoop()
+        //?.let(...)：只有当 songs.firstOrNull() 不为 null 时，才会执行 let 中的 lambda。
+        startProgressLoop()//进度条开始前进
     }
 
     fun onSearchTextChange(text: String) {//更新ui状态
@@ -125,9 +125,9 @@ class MusicViewModel(
                 isPlaying = false
             )
         } else {
-            if (player == null) {
+            if (player == null) {//当前没有媒体源播放音乐（比如刚进页面）
                 playSong(currentSong)
-            } else {
+            } else {//有媒体源，但是是暂停状态
                 player.start()
 
                 _uiState.value = state.copy(
@@ -143,7 +143,8 @@ class MusicViewModel(
         val nextSong = if (state.playMode == PlayMode.SHUFFLE && songs.size > 1) {
             songs.filter { it.id != state.currentSongId }.random()
         } else {
-            val currentIndex = songs.indexOfFirst { it.id == state.currentSongId }
+            val currentIndex = songs.indexOfFirst { it.id == state.currentSongId }//获取当前播放歌曲在songs里的下标
+            //indexOfFirst：从列表中从头到尾遍历，返回第一个满足条件的元素的索引。
             val nextIndex = if (currentIndex == -1) {
                 0
             } else {
@@ -199,7 +200,7 @@ class MusicViewModel(
         )
 
         _uiState.value = _uiState.value.copy(
-            playbackSpeed = newSpeed
+            playbackSpeed = newSpeed//playbackSpeed播放倍速
         )
     }
 
@@ -209,33 +210,34 @@ class MusicViewModel(
         val newPosition = value.toInt()
 
         _uiState.value = _uiState.value.copy(
-            currentPosition = newPosition
+            currentPosition = newPosition//currentPosition当前播放进度
         )
 
-        updateLyric(newPosition)
+        updateLyric(newPosition)//更新对应进度条位置的歌词
     }
 
     fun onSeekFinished() {//松手更新ui
         val position = _uiState.value.currentPosition
 
-        mediaPlayer?.seekTo(position.coerceAtLeast(0))
+        mediaPlayer?.seekTo(position.coerceAtLeast(0))//更新媒体播放位置
 
         isUserSeeking = false
     }
 
     fun onLyricClick(lyricText: String) {
         // 查找歌词对应的时间位置
-        val lyricLine = lyricLines.find { it.text == lyricText }
+        val lyricLine = lyricLines.find { it.text == lyricText }//找到歌词列表中对应歌词
+        //find：返回第一个匹配给定谓词的元素的索引，如果未找到这样的元素，则返回 -1
         if (lyricLine != null) {
             // 跳转到该歌词对应的时间位置
             isUserSeeking = true
             mediaPlayer?.seekTo(lyricLine.timeMs)
             _uiState.value = _uiState.value.copy(
-                currentPosition = lyricLine.timeMs
+                currentPosition = lyricLine.timeMs//currentPosition当前播放进度，单位毫秒
             )
-            updateLyric(lyricLine.timeMs)
+            updateLyric(lyricLine.timeMs)//更新对应进度条位置的歌词
             isUserSeeking = false
-            
+
             // 如果当前未播放，开始播放
             if (!uiState.value.isPlaying) {
                 playOrPause()
@@ -247,19 +249,20 @@ class MusicViewModel(
      * 快进10秒
      */
     fun seekForward10s() {
-        val player = mediaPlayer ?: return
+        val player = mediaPlayer ?: return//Elvis 操作符 ?:如果是null就return，否则赋值给player
         val duration = player.duration
-        val currentPosition = player.currentPosition
+        val currentPosition = player.currentPosition//currentPosition当前播放进度，单位毫秒
         
         // 计算新位置：当前位置 + 10秒，不超过歌曲总时长
         val newPosition = (currentPosition + 10000).coerceAtMost(duration)
+        //coerceAtMost 是 Kotlin 标准库中的扩展函数，用于限制值的上限
         
-        isUserSeeking = true
+        isUserSeeking = true//设为true防止进度条自动更新
         player.seekTo(newPosition)
         _uiState.value = _uiState.value.copy(
             currentPosition = newPosition
-        )
-        updateLyric(newPosition)
+        )//currentPosition当前播放进度
+        updateLyric(newPosition)//更新对应进度条位置的歌词
         isUserSeeking = false
     }
 
@@ -269,7 +272,7 @@ class MusicViewModel(
     fun seekBackward10s() {
         val player = mediaPlayer ?: return
         val currentPosition = player.currentPosition
-        
+        //currentPosition当前播放进度，单位毫秒
         // 计算新位置：当前位置 - 10秒，不小于0
         val newPosition = (currentPosition - 10000).coerceAtLeast(0)
         
@@ -278,13 +281,13 @@ class MusicViewModel(
         _uiState.value = _uiState.value.copy(
             currentPosition = newPosition
         )
-        updateLyric(newPosition)
+        updateLyric(newPosition)//更新对应进度条位置的歌词
         isUserSeeking = false
     }
 
-    fun toggleFavorite(song: Song) {
+    fun toggleFavorite(song: Song) {//是否喜欢
         val state = _uiState.value
-        val oldFavorites = state.favoriteSongIds
+        val oldFavorites = state.favoriteSongIds//favoriteSongIds: Set<Int> = emptySet(),//喜欢音乐id集合
 
         val newFavorites = if (oldFavorites.contains(song.id)) {
             oldFavorites - song.id
@@ -305,7 +308,7 @@ class MusicViewModel(
      */
     private fun addToPlaybackHistory(song: Song) {
         // 先移除已存在的相同歌曲
-        _playbackHistory.removeAll { it.id == song.id }
+        _playbackHistory.removeAll { it.id == song.id }//private val _playbackHistory = mutableListOf<Song>()
         // 添加到最前面
         _playbackHistory.add(0, song)
         // 限制历史记录数量
@@ -332,7 +335,7 @@ class MusicViewModel(
      * 从历史记录中移除指定歌曲
      */
     fun removeSongFromHistory(song: Song) {
-        _playbackHistory.removeAll { it.id == song.id }
+        _playbackHistory.removeAll { it.id == song.id }//private val _playbackHistory = mutableListOf<Song>()
         _uiState.value = _uiState.value.copy(
             playbackHistory = _playbackHistory.toList()
         )
@@ -383,18 +386,18 @@ class MusicViewModel(
     }
 
     private fun updateLyric(position: Int) {//更新歌词
-        if (lyricLines.isEmpty()) {
+        if (lyricLines.isEmpty()) {//歌词加载失败，歌词列表为空
             _uiState.value = _uiState.value.copy(
                 currentLyric = "暂无歌词",
                 nextLyric = "",
                 lyricWindow = listOf("暂无歌词"),
-                activeLyricIndex = 0,
+                activeLyricIndex = 0,//高亮歌词下标
                 fullLyricLines = emptyList()
             )
             return
         }
 
-        val currentIndex = lyricLines.indexOfLast {//从 lyricLines 中找到最后一个 timeMs 小于等于当前播放进度 position 的歌词下标
+        val currentIndex = lyricLines.indexOfLast {//从 lyricLines 中找到最后一个 timeMs 小于等于当前播放进度 position 的歌词在lyricLines的下标
             position >= it.timeMs
         }
 
@@ -409,19 +412,21 @@ class MusicViewModel(
         val endIndex = (startIndex + 4).coerceAtMost(lyricLines.lastIndex)
         val realStartIndex = (endIndex - 4).coerceAtLeast(0)
 
-        val lyricWindow = lyricLines//歌词窗口
-            .subList(realStartIndex, endIndex + 1)
+        val lyricWindow = lyricLines//歌词窗口,设置是取5句歌词为一个窗口
+            .subList(realStartIndex, endIndex + 1)//取一个子链表，左闭右开区间
             .map { it.text }
+        //.map { it.text } 遍历这个列表中的每一个 LyricLine 对象，取出它的 .text 属性（即歌词文本字符串），
+        // 最终返回一个 List<String>（纯文本字符串列表）
 
         val activeIndex = safeCurrentIndex - realStartIndex//计算当前高亮歌词在窗口中的位置（正在唱的歌词）
-
+        //当前歌词减去前两句歌词下标是2，然后歌词窗口下标是2就是第三局歌词高亮
         val currentLyric = if (currentIndex >= 0) {//计算当前歌词文本
             lyricLines[currentIndex].text
         } else {
             "等待歌词..."
         }
 
-        val nextLyric = if (currentIndex + 1 in lyricLines.indices) {
+        val nextLyric = if (currentIndex + 1 in lyricLines.indices) {//判断当前歌词是不是最后一句歌词
             lyricLines[currentIndex + 1].text
         } else {
             ""

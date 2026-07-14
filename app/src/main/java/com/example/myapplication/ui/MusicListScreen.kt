@@ -102,9 +102,9 @@ fun MusicListScreen(//Compose 页面函数,1. uiState：界面显示所需的状
                 }
             }
 
-            LazyColumn {
+            LazyColumn {//一个可滚动的垂直列表
                 items(
-                    items = uiState.filteredSongs,
+                    items = uiState.filteredSongs,//返回被过滤后的若干歌曲
                     key = { it.id }
                 ) { song ->
                     val isCurrentSong = song.id == uiState.currentSongId

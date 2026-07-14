@@ -106,21 +106,35 @@ fun PlayerDetailScreen(//Compose 页面函数。
             Spacer(modifier = Modifier.weight(0.5f))
 
             // 歌词滚动显示区域
-            val lazyListState = rememberLazyListState()
-            val coroutineScope = rememberCoroutineScope()
+            val lazyListState = rememberLazyListState()//管理 `LazyColumn`（歌词列表）的滚动状态，包括当前滚动位置等信息。
+            //rememberLazyListState() 是 Jetpack Compose 中用于管理 LazyColumn 或 LazyRow 滚动状态的函数。
+            //### 主要功能
+            //1. __状态记忆__：使用 `remember` 机制，在重组过程中保持滚动状态不变
+            //2. __滚动控制__：提供滚动位置、可见项信息、滚动动画等控制能力
+            //3. __状态恢复__：支持配置变更（如屏幕旋转）时的状态恢复
+            val coroutineScope = rememberCoroutineScope()//创建协程作用域，用于在 Compose 中安全地启动协程。
+            //rememberCoroutineScope() 是 Jetpack Compose 中用于在可组合函数中安全启动协程的函数。
+            //### 主要功能
+            //1. __生命周期感知__：协程作用域与当前可组合项的生命周期绑定，当可组合项离开组合时自动取消
+            //2. __安全启动__：在 Compose 副作用（如 LaunchedEffect、DisposableEffect）或事件回调中启动协程
+            //3. __状态管理__：避免在可组合函数中直接使用 GlobalScope 或 ViewModel 协程作用域
+
 
             // 当前播放的歌词在完整列表中的位置
             val currentLyricIndex = uiState.currentLyricIndex
 
             // 当当前歌词索引变化且歌曲正在播放时，自动滚动到该位置
-            LaunchedEffect(currentLyricIndex, uiState.isPlaying) {
+            LaunchedEffect(currentLyricIndex, uiState.isPlaying) {//LaunchedEffect这是一个 Compose 副作用函数，当 `currentLyricIndex` 或 `uiState.isPlaying` 发生变化时触发。
+            //这是一个 Compose 副作用函数，当 `currentLyricIndex` 或 `uiState.isPlaying` 发生变化时触发。
+                // 确保只有在依赖项变化时才执行滚动逻辑
                 if (currentLyricIndex >= 0 && uiState.isPlaying) {
-                    coroutineScope.launch {
+                    coroutineScope.launch {//启动一个协程
                         // 计算目标位置，使当前歌词在屏幕中央
                         val visibleItemsCount = 5 // 大致可见的项目数
                         val targetIndex = (currentLyricIndex - visibleItemsCount / 2).coerceAtLeast(0)
-                        
-                        lazyListState.animateScrollToItem(
+                        //将当前歌词索引减去可见歌词数的一半，使当前歌词位于屏幕中央。
+                        //例如：如果当前歌词索引是 10，则 `10 - 5/2 = 10 - 2 = 8`，滚动到第 8 行，这样第 10 行歌词会显示在屏幕中央附近。
+                        lazyListState.animateScrollToItem(//animateScrollToItem平滑滚动动画
                             index = targetIndex,
                             scrollOffset = 0
                         )

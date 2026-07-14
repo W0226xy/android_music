@@ -21,7 +21,7 @@ enum class AppScreen {
 @Composable//Compose 的核心思想：状态变了，界面自动刷新
 fun AutoMusicApp(
     uiState: MusicUiState,
-    onSearchTextChange: (String) -> Unit,
+    onSearchTextChange: (String) -> Unit,//接收一个string类型参数，返回值Unit，相当于void
     onSongClick: (Song) -> Unit,
     onPlayClick: (Song) -> Unit,
     onPlayPauseClick: () -> Unit,

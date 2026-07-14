@@ -1,6 +1,7 @@
 package com.example.myapplication.data
 
 data class MusicUiState(//音乐播放器当前界面状态
+    //构造函数()
     val songs: List<Song> = emptyList(),//歌曲列表
     val searchText: String = "",//搜索框文本
     val currentSongId: Int = 0,//当前正在播放的歌曲 ID
@@ -18,11 +19,11 @@ data class MusicUiState(//音乐播放器当前界面状态
     val currentLyricIndex: Int = -1,//当前歌词在完整列表中的索引
     val playbackHistory: List<Song> = emptyList(),//播放历史记录列表
     val playbackSpeed: Float = 1f//播放速度，默认为1倍速
-) {
-    val currentSong: Song?//根据当前歌曲 ID，从歌曲列表中找到当前正在播放的歌曲；如果找不到，就默认返回第一首歌
+) {//currentSong 和 filteredSongs 是派生/计算属性，它们的值完全由其他属性决定
+    val currentSong: Song?//根据当前歌曲 ID，从歌曲列表中找到当前正在播放的歌曲；如果找不到，就默认返回第一首歌；返回类型为可空类型
         get() = songs.firstOrNull { it.id == currentSongId } ?: songs.firstOrNull()
 
-    val filteredSongs: List<Song>//根据搜索框输入的内容，对歌曲列表进行过滤，得到搜索后的歌曲列表。
+    val filteredSongs: List<Song>//根据搜索框输入的内容，对歌曲列表进行过滤，得到搜索后的歌曲列表；过滤条件：歌曲名或歌手名包含搜索文本（忽略大小写）
         get() = songs.filter {//ignoreCase = true忽略大小写，根据歌曲名或者歌手找
             it.name.contains(searchText, ignoreCase = true) ||
                     it.singer.contains(searchText, ignoreCase = true)
