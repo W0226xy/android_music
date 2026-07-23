@@ -2,6 +2,7 @@ package com.example.myapplication.viewmodel
 
 import android.app.Application
 import android.media.MediaPlayer
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.data.LyricLine
@@ -11,12 +12,14 @@ import com.example.myapplication.data.Song
 import com.example.myapplication.data.nextMode
 import com.example.myapplication.repository.MusicRepository
 import com.example.myapplication.utils.LyricParser
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 //ViewModel，逻辑和状态管理:负责接收 View 层传来的事件，并执行对应业务逻辑，同时维护 UI 状态。
 //播放歌曲
@@ -42,7 +45,7 @@ class MusicViewModel(
 
     private var isUserSeeking: Boolean = false//是否用户在拖动进度条，用户拖动进度条时，自动更新把 UI 覆盖掉
 
-    private val songs: List<Song> = repository.getSongs()//UI状态
+    private val songs = mutableListOf<Song>()//UI状态
 
     // 播放历史记录管理
     private val _playbackHistory = mutableListOf<Song>()
@@ -58,8 +61,21 @@ class MusicViewModel(
     val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
 
     init {//按照声明顺序执行 属性初始化
-        songs.firstOrNull()?.let { firstSong ->
-            loadLyrics(firstSong)//加载歌词
+        viewModelScope.launch {
+            try {
+                val loadedSongs = repository.getSongs()
+                songs.clear()
+                songs.addAll(loadedSongs)
+                _uiState.value = _uiState.value.copy(
+                    songs = songs,
+                    currentSongId = songs.firstOrNull()?.id ?: 0
+                )
+                songs.firstOrNull()?.let { firstSong ->
+                    loadLyrics(firstSong)//加载歌词
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
         //?.let(...)：只有当 songs.firstOrNull() 不为 null 时，才会执行 let 中的 lambda。
         startProgressLoop()//进度条开始前进
@@ -71,46 +87,54 @@ class MusicViewModel(
         )
     }
 
-    fun playSong(song: Song) {
-        mediaPlayer?.release()//（1）释放旧播放器
+    fun playSong(song: Song){
+        viewModelScope.launch {
+            mediaPlayer?.release()//（1）释放旧播放器
 
-        val player = MediaPlayer.create(context, song.audioResId)//2）创建新播放器
+            val player = MediaPlayer()//2）创建新播放器
 
-        if (player == null) {
-            _uiState.value = _uiState.value.copy(
-                isPlaying = false
-            )
-            return
+            try {
+                player.setDataSource(song.audioUrl)
+                player.prepare() // 准备播放
+
+                mediaPlayer = player
+
+                loadLyrics(song)//3）加载歌词
+
+                player.setVolume(//设置音量
+                    _uiState.value.volume,
+                    _uiState.value.volume
+                )
+
+                player.setOnCompletionListener(object :MediaPlayer.OnCompletionListener{
+                    override fun onCompletion(mp: MediaPlayer?) {
+                        handleSongCompletion(song)
+                    }
+                })
+
+                player.start()//开始播放
+
+                _uiState.value = _uiState.value.copy(//更新ui状态
+                    currentSongId = song.id,
+                    isPlaying = true,
+                    currentPosition = 0,
+                    duration = player.duration,
+                    playbackSpeed = 1f//切换歌曲时重置播放倍速为1倍速
+                )
+
+                // 设置播放速度为1倍速
+                player.setPlaybackParams(player.playbackParams.setSpeed(1f))
+
+                // 添加到播放历史
+                addToPlaybackHistory(song)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _uiState.value = _uiState.value.copy(
+                    isPlaying = false
+                )
+                player.release()
+            }
         }
-
-        mediaPlayer = player
-
-        loadLyrics(song)//3）加载歌词
-
-        player.setVolume(//设置音量
-            _uiState.value.volume,
-            _uiState.value.volume
-        )
-
-        player.setOnCompletionListener {//播放完成监听，播完自动下一首 / 循环 / 单曲循环
-            handleSongCompletion(song)
-        }
-
-        player.start()//开始播放
-
-        _uiState.value = _uiState.value.copy(//更新ui状态
-            currentSongId = song.id,
-            isPlaying = true,
-            currentPosition = 0,
-            duration = player.duration,
-            playbackSpeed = 1f//切换歌曲时重置播放倍速为1倍速
-        )
-
-        // 设置播放速度为1倍速
-        player.setPlaybackParams(player.playbackParams.setSpeed(1f))
-
-        // 添加到播放历史
-        addToPlaybackHistory(song)
     }
 
     fun playOrPause() {//播放暂停逻辑
@@ -381,8 +405,17 @@ class MusicViewModel(
     }
 
     private fun loadLyrics(song: Song) {//加载歌词
-        lyricLines = LyricParser.parseLrc(context, song.lyricResId)
-        updateLyric(0)
+        viewModelScope.launch(Dispatchers.IO) {
+            lyricLines = try {
+                LyricParser.parseLrcFromUrl(song.lyricUrl)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                emptyList()
+            }
+            withContext(Dispatchers.Main) {
+                updateLyric(0)
+            }
+        }
     }
 
     private fun updateLyric(position: Int) {//更新歌词

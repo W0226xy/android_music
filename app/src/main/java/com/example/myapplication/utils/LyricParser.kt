@@ -3,14 +3,30 @@ package com.example.myapplication.utils
 import android.content.Context
 import androidx.annotation.RawRes
 import com.example.myapplication.data.LyricLine
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
+import java.io.IOException
 
 object LyricParser {//读取歌词文件和时间戳
 //object只有一个单例
+    // 从资源ID加载歌词
     fun parseLrc(context: Context, @RawRes lyricResId: Int): List<LyricLine> {
         val lrcText = readRawText(context, lyricResId)
+        return parseLrcText(lrcText)
+    }
+    
+    // 从网络URL加载歌词
+    @Throws(IOException::class)
+    fun parseLrcFromUrl(url: String): List<LyricLine> {
+        val lrcText = downloadLrcFromUrl(url)
+        return parseLrcText(lrcText)
+    }
+    
+    // 解析LRC文本内容
+    private fun parseLrcText(lrcText: String): List<LyricLine> {
 
         // 支持多种LRC时间戳格式：
         // 1. 标准格式: [mm:ss.xxx] 或 [mm:ss:xxx]
@@ -81,6 +97,19 @@ object LyricParser {//读取歌词文件和时间戳
         }
 
         return lyricLines.sortedBy { it.timeMs }
+    }
+    
+    // 从网络下载LRC文件
+    private fun downloadLrcFromUrl(url: String): String {
+        val client = OkHttpClient()
+        val request = Request.Builder()
+            .url(url)
+            .build()
+        
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Failed to download lyrics: $response")
+            return response.body?.string() ?: ""
+        }
     }
 
     private fun readRawText(context: Context, @RawRes resId: Int): String {
