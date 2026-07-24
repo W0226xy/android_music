@@ -55,4 +55,12 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Retrofit网络请求
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+
+    // JSON解析
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }

@@ -41,7 +41,17 @@ class MainActivity : ComponentActivity() {
                     onSeekFinished = musicViewModel::onSeekFinished,
                     onVolumeChange = musicViewModel::changeVolume,
                     onPlayModeClick = musicViewModel::changePlayMode,
+<<<<<<< HEAD
                     onFavoriteClick = musicViewModel::toggleFavorite
+=======
+                    onFavoriteClick = musicViewModel::toggleFavorite,
+                    onClearPlaybackHistory = musicViewModel::clearPlaybackHistory,
+                    onRemoveSongFromHistory = musicViewModel::removeSongFromHistory,
+                    onLyricClick = musicViewModel::onLyricClick,
+                    onOnlineMusicClick = {
+                        // 这个回调实际上由 AutoMusicApp 内部处理页面切换
+                    }
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
                 )
             }
         }

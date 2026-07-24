@@ -2,12 +2,15 @@ package com.example.myapplication.viewmodel
 
 import android.app.Application
 import android.media.MediaPlayer
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.data.LyricLine
 import com.example.myapplication.data.MusicUiState
 import com.example.myapplication.data.PlayMode
 import com.example.myapplication.data.Song
+import com.example.myapplication.data.SongSource
 import com.example.myapplication.data.nextMode
 import com.example.myapplication.repository.MusicRepository
 import com.example.myapplication.utils.LyricParser
@@ -18,30 +21,23 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-//ViewModel，逻辑和状态管理:负责接收 View 层传来的事件，并执行对应业务逻辑，同时维护 UI 状态。
-//播放歌曲
-//暂停歌曲
-//切换上一首 / 下一首
-//切换播放模式
-//更新播放进度
-//调节音量
-//解析并同步歌词
-//收藏歌曲
-//更新 MusicUiState
 class MusicViewModel(
     application: Application
 ) : AndroidViewModel(application) {
 
     private val context = application.applicationContext
-
     private val repository = MusicRepository()
 
-    private var mediaPlayer: MediaPlayer? = null//播放 / 暂停 / seek / 获取进度 / 获取时长
+    private var mediaPlayer: MediaPlayer? = null
+    private var lyricLines: List<LyricLine> = emptyList()
+    private var isUserSeeking = false
 
-    private var lyricLines: List<LyricLine> = emptyList()//保存解析后的歌词：(timeMs, text)
+    private var songs: List<Song> = emptyList()
 
-    private var isUserSeeking: Boolean = false//是否用户在拖动进度条，用户拖动进度条时，自动更新把 UI 覆盖掉
+    private val playbackHistory = mutableListOf<Song>()
+    private val historyLimit = 100
 
+<<<<<<< HEAD
     private val songs: List<Song> = repository.getSongs()//UI状态
 
     private val _uiState = MutableStateFlow(
@@ -58,26 +54,176 @@ class MusicViewModel(
             loadLyrics(firstSong)
         }
 
+=======
+    private val _uiState = MutableStateFlow(
+        MusicUiState()
+    )
+
+    val uiState: StateFlow<MusicUiState> =
+        _uiState.asStateFlow()
+
+    init {
+        loadSongs()
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
         startProgressLoop()
     }
 
-    fun onSearchTextChange(text: String) {//更新ui状态
-        _uiState.value = _uiState.value.copy(//.value拿到容器里的值，
-            searchText = text//searchText搜索框文本
+    /**
+     * 加载本地歌曲 + 服务器歌曲
+     */
+    private fun loadSongs() {
+        viewModelScope.launch {
+
+            Log.d(
+                "MusicViewModel",
+                "loadSongs start"
+            )
+
+
+            val localSongs = repository.getLocalSongs()
+
+            val onlineSongs = repository.getOnlineSongs()
+
+            Log.d(
+                "MusicViewModel",
+                "onlineSongs=$onlineSongs"
+            )
+
+            songs = localSongs + onlineSongs
+
+            _uiState.value = _uiState.value.copy(
+                songs = songs,
+                currentSongId = songs.firstOrNull()?.id ?: 0
+            )
+
+            songs.firstOrNull()?.let {
+                loadLyrics(it)
+            }
+        }
+    }
+
+    fun onSearchTextChange(text: String) {
+        _uiState.value = _uiState.value.copy(
+            searchText = text
         )
     }
 
+    /**
+     * 播放歌曲
+     * LOCAL: 播放res/raw
+     * ONLINE: 播放网络url
+     */
     fun playSong(song: Song) {
-        mediaPlayer?.release()//（1）释放旧播放器
 
-        val player = MediaPlayer.create(context, song.audioResId)//2）创建新播放器
+        mediaPlayer?.release()
 
-        if (player == null) {
+        val player = MediaPlayer()
+        mediaPlayer = player
+
+        try {
+
+            if (song.source == SongSource.LOCAL) {
+
+                val uri = Uri.parse(
+                    "android.resource://${context.packageName}/${song.audioResId}"
+                )
+
+                player.setDataSource(
+                    context,
+                    uri
+                )
+
+                player.prepare()
+
+                loadLyrics(song)
+
+                player.setVolume(
+                    _uiState.value.volume,
+                    _uiState.value.volume
+                )
+
+                player.setOnCompletionListener {
+                    handleSongCompletion(song)
+                }
+
+                player.start()
+
+                _uiState.value = _uiState.value.copy(
+                    currentSongId = song.id,
+                    isPlaying = true,
+                    currentPosition = 0,
+                    duration = player.duration,
+                    playbackSpeed = 1f
+                )
+
+                addToPlaybackHistory(song)
+
+            } else {
+
+                val url = song.url ?: return
+
+                Log.d("MusicViewModel", "开始播放在线歌曲：$url")
+
+                player.setDataSource(url)
+
+                player.setVolume(
+                    _uiState.value.volume,
+                    _uiState.value.volume
+                )
+
+                player.setOnPreparedListener {
+
+                    Log.d("MusicViewModel", "网络歌曲准备完成")
+
+                    loadLyrics(song)
+
+                    it.start()
+                    Log.d(
+                        "MusicViewModel",
+                        "开始播放，duration=${it.duration}"
+                    )
+
+                    _uiState.value = _uiState.value.copy(
+                        currentSongId = song.id,
+                        isPlaying = true,
+                        currentPosition = 0,
+                        duration = it.duration,
+                        playbackSpeed = 1f
+                    )
+
+                    addToPlaybackHistory(song)
+                }
+
+                player.setOnCompletionListener {
+                    handleSongCompletion(song)
+                }
+
+                player.setOnErrorListener { _, what, extra ->
+
+                    Log.e(
+                        "MusicViewModel",
+                        "MediaPlayer error what=$what extra=$extra"
+                    )
+
+                    true
+                }
+
+                player.prepareAsync()
+            }
+
+        } catch (e: Exception) {
+
+            Log.e(
+                "MusicViewModel",
+                "playSong error",
+                e
+            )
+
             _uiState.value = _uiState.value.copy(
                 isPlaying = false
             )
-            return
         }
+<<<<<<< HEAD
 
         mediaPlayer = player
 
@@ -100,23 +246,39 @@ class MusicViewModel(
             currentPosition = 0,
             duration = player.duration
         )
+=======
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
     }
 
-    fun playOrPause() {//播放暂停逻辑
+
+    fun playOrPause() {
+
         val player = mediaPlayer
         val state = _uiState.value
         val currentSong = state.currentSong ?: return
 
         if (state.isPlaying) {
+
             player?.pause()
 
             _uiState.value = state.copy(
                 isPlaying = false
             )
+
         } else {
+<<<<<<< HEAD
             if (player == null) {
                 playSong(currentSong)
             } else {
+=======
+
+            if (player == null) {
+
+                playSong(currentSong)
+
+            } else {
+
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
                 player.start()
 
                 _uiState.value = state.copy(
@@ -126,9 +288,12 @@ class MusicViewModel(
         }
     }
 
-    fun playNextSong() {//下一首（根据播放模式设置播放id）
+
+    fun playNextSong() {
+
         val state = _uiState.value
 
+<<<<<<< HEAD
         val nextSong = if (state.playMode == PlayMode.SHUFFLE && songs.size > 1) {
             songs.filter { it.id != state.currentSongId }.random()
         } else {
@@ -138,52 +303,199 @@ class MusicViewModel(
             } else {
                 (currentIndex + 1) % songs.size
             }
+=======
+        val nextSong =
+            if (state.playMode == PlayMode.SHUFFLE && songs.size > 1) {
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
 
-            songs[nextIndex]
-        }
+                songs.filter {
+                    it.id != state.currentSongId
+                }.random()
+
+            } else {
+
+                val index = songs.indexOfFirst {
+                    it.id == state.currentSongId
+                }
+
+                val nextIndex =
+                    if (index == -1)
+                        0
+                    else
+                        (index + 1) % songs.size
+
+                songs[nextIndex]
+            }
 
         playSong(nextSong)
     }
 
-    fun playPreviousSong() {//上一首，类似下一首逻辑
+
+    fun playPreviousSong() {
+
         val state = _uiState.value
 
-        val previousSong = if (state.playMode == PlayMode.SHUFFLE && songs.size > 1) {
-            songs.filter { it.id != state.currentSongId }.random()
-        } else {
-            val currentIndex = songs.indexOfFirst { it.id == state.currentSongId }
-            val previousIndex = if (currentIndex <= 0) {
-                songs.lastIndex
-            } else {
-                currentIndex - 1
-            }
+        val previousSong =
+            if (state.playMode == PlayMode.SHUFFLE && songs.size > 1) {
 
-            songs[previousIndex]
-        }
+                songs.filter {
+                    it.id != state.currentSongId
+                }.random()
+
+            } else {
+
+                val index = songs.indexOfFirst {
+                    it.id == state.currentSongId
+                }
+
+                val previousIndex =
+                    if (index <= 0)
+                        songs.lastIndex
+                    else
+                        index - 1
+
+                songs[previousIndex]
+            }
 
         playSong(previousSong)
     }
-
-    fun changePlayMode() {//改变播放模式
+    fun changePlayMode() {
         _uiState.value = _uiState.value.copy(
             playMode = _uiState.value.playMode.nextMode()
         )
     }
 
+<<<<<<< HEAD
     fun changeVolume(value: Float) {//设置音量
         val newVolume = value.coerceIn(0f, 1f)
+=======
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
 
-        mediaPlayer?.setVolume(newVolume, newVolume)
+    fun changeVolume(value: Float) {
+
+        val volume = value.coerceIn(0f, 1f)
+
+<<<<<<< HEAD
+    fun onProgressChange(value: Float) {//用户拖动进度条
+=======
+        mediaPlayer?.setVolume(
+            volume,
+            volume
+        )
 
         _uiState.value = _uiState.value.copy(
-            volume = newVolume
+            volume = volume
         )
     }
 
-    fun onProgressChange(value: Float) {//用户拖动进度条
+
+    fun changePlaybackSpeed(speed: Float) {
+
+        val newSpeed = speed.coerceIn(
+            0.5f,
+            2.0f
+        )
+
+        mediaPlayer?.let { player ->
+
+            val params = player.playbackParams
+
+            params.speed = newSpeed
+
+            player.playbackParams = params
+        }
+
+        _uiState.value = _uiState.value.copy(
+            playbackSpeed = newSpeed
+        )
+    }
+
+
+    fun onProgressChange(value: Float) {
+
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
         isUserSeeking = true
 
-        val newPosition = value.toInt()
+        val position = value.toInt()
+
+        _uiState.value = _uiState.value.copy(
+<<<<<<< HEAD
+            currentPosition = newPosition
+        )
+
+        updateLyric(newPosition)
+=======
+            currentPosition = position
+        )
+
+        updateLyric(position)
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
+    }
+
+
+<<<<<<< HEAD
+        mediaPlayer?.seekTo(position.coerceAtLeast(0))
+=======
+    fun onSeekFinished() {
+
+        val position =
+            _uiState.value.currentPosition
+
+        mediaPlayer?.seekTo(
+            position.coerceAtLeast(0)
+        )
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
+
+        isUserSeeking = false
+    }
+
+<<<<<<< HEAD
+    fun toggleFavorite(song: Song) {
+        val state = _uiState.value
+        val oldFavorites = state.favoriteSongIds
+=======
+
+    fun onLyricClick(lyricText: String) {
+
+        val lyricLine =
+            lyricLines.find {
+                it.text == lyricText
+            }
+
+        if (lyricLine != null) {
+
+            isUserSeeking = true
+
+            mediaPlayer?.seekTo(
+                lyricLine.timeMs
+            )
+
+            _uiState.value = _uiState.value.copy(
+                currentPosition = lyricLine.timeMs
+            )
+
+            updateLyric(
+                lyricLine.timeMs
+            )
+
+            isUserSeeking = false
+
+            if (!_uiState.value.isPlaying) {
+                playOrPause()
+            }
+        }
+    }
+
+
+    fun seekForward10s() {
+
+        val player = mediaPlayer ?: return
+
+        val newPosition =
+            (player.currentPosition + 10000)
+                .coerceAtMost(player.duration)
+
+        player.seekTo(newPosition)
 
         _uiState.value = _uiState.value.copy(
             currentPosition = newPosition
@@ -192,44 +504,133 @@ class MusicViewModel(
         updateLyric(newPosition)
     }
 
-    fun onSeekFinished() {//松手更新ui
-        val position = _uiState.value.currentPosition
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
 
-        mediaPlayer?.seekTo(position.coerceAtLeast(0))
+    fun seekBackward10s() {
 
-        isUserSeeking = false
+        val player = mediaPlayer ?: return
+
+        val newPosition =
+            (player.currentPosition - 10000)
+                .coerceAtLeast(0)
+
+        player.seekTo(newPosition)
+
+        _uiState.value = _uiState.value.copy(
+            currentPosition = newPosition
+        )
+
+        updateLyric(newPosition)
     }
 
+
+// ================= 收藏 =================
+
+
     fun toggleFavorite(song: Song) {
-        val state = _uiState.value
-        val oldFavorites = state.favoriteSongIds
 
-        val newFavorites = if (oldFavorites.contains(song.id)) {
-            oldFavorites - song.id
-        } else {
-            oldFavorites + song.id
-        }
+        val favorites =
+            _uiState.value.favoriteSongIds
 
-        _uiState.value = state.copy(
+        val newFavorites =
+            if (favorites.contains(song.id)) {
+                favorites - song.id
+            } else {
+                favorites + song.id
+            }
+
+        _uiState.value = _uiState.value.copy(
             favoriteSongIds = newFavorites
         )
     }
 
+<<<<<<< HEAD
     private fun handleSongCompletion(song: Song) {//播放完成，先看播放模式，决定下一首播放id，更新播放状态
         val state = _uiState.value
+=======
 
-        when (state.playMode) {
+// ================= 公开的收藏方法 =================
+
+
+    fun onFavoriteClick(song: Song) {
+        toggleFavorite(song)
+    }
+
+
+// ================= 播放历史 =================
+
+
+    private fun addToPlaybackHistory(song: Song) {
+
+        playbackHistory.removeAll {
+            it.id == song.id
+        }
+
+        playbackHistory.add(
+            0,
+            song
+        )
+
+        if (playbackHistory.size > historyLimit) {
+            playbackHistory.removeAt(
+                playbackHistory.lastIndex
+            )
+        }
+
+        _uiState.value = _uiState.value.copy(
+            playbackHistory = playbackHistory.toList()
+        )
+    }
+
+
+    fun clearPlaybackHistory() {
+
+        playbackHistory.clear()
+
+        _uiState.value = _uiState.value.copy(
+            playbackHistory = emptyList()
+        )
+    }
+
+
+    fun removeSongFromHistory(song: Song) {
+
+        playbackHistory.removeAll {
+            it.id == song.id
+        }
+
+        _uiState.value = _uiState.value.copy(
+            playbackHistory = playbackHistory.toList()
+        )
+    }
+
+    private fun handleSongCompletion(song: Song) {
+
+        when (_uiState.value.playMode) {
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
+
             PlayMode.SINGLE_LOOP -> {
+
                 mediaPlayer?.seekTo(0)
                 mediaPlayer?.start()
 
+<<<<<<< HEAD
                 _uiState.value = state.copy(
                     currentPosition = 0,
                     isPlaying = true
                 )
+=======
+                _uiState.value =
+                    _uiState.value.copy(
+                        currentPosition = 0,
+                        isPlaying = true
+                    )
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
             }
 
+
             PlayMode.LIST_LOOP -> {
+<<<<<<< HEAD
                 val currentIndex = songs.indexOfFirst { it.id == song.id }
                 val nextIndex = if (currentIndex == -1) {
                     0
@@ -246,17 +647,63 @@ class MusicViewModel(
                 } else {
                     songs.filter { it.id != song.id }.random()
                 }
+=======
 
-                playSong(nextSong)
+                playNextSong()
+
+            }
+
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
+
+            PlayMode.SHUFFLE -> {
+
+                playNextSong()
+
             }
         }
     }
 
-    private fun loadLyrics(song: Song) {//加载歌词
-        lyricLines = LyricParser.parseLrc(context, song.lyricResId)
-        updateLyric(0)
+
+
+    private fun loadLyrics(song: Song) {
+
+        viewModelScope.launch {
+
+            lyricLines =
+                when (song.source) {
+
+                    SongSource.LOCAL -> {
+
+                        if (song.lyricResId != null) {
+
+                            LyricParser.parseLrc(
+                                context,
+                                song.lyricResId
+                            )
+
+                        } else {
+
+                            emptyList()
+
+                        }
+                    }
+
+
+                    SongSource.ONLINE -> {
+
+                        LyricParser.parseNetworkLrc(
+                            song.lyricUrl
+                        )
+
+                    }
+                }
+
+
+            updateLyric(0)
+        }
     }
 
+<<<<<<< HEAD
     private fun updateLyric(position: Int) {//更新歌词
         if (lyricLines.isEmpty()) {
             _uiState.value = _uiState.value.copy(
@@ -271,18 +718,32 @@ class MusicViewModel(
         val currentIndex = lyricLines.indexOfLast {//从 lyricLines 中找到最后一个 timeMs 小于等于当前播放进度 position 的歌词下标
             position >= it.timeMs
         }
+=======
+    private fun updateLyric(position: Int) {
 
-        val safeCurrentIndex = if (currentIndex >= 0) {//还没到第一句歌词处理（比如第一句歌词在10s，当前是3s）
-            currentIndex
-        } else {
-            0
+        if (lyricLines.isEmpty()) {
+
+            _uiState.value =
+                _uiState.value.copy(
+                    currentLyric = "暂无歌词",
+                    nextLyric = "",
+                    lyricWindow = listOf("暂无歌词"),
+                    activeLyricIndex = 0,
+                    fullLyricLines = emptyList()
+                )
+
+            return
         }
 
-        //设置5行歌词（当前在唱的，前两句，后两句）
-        val startIndex = (safeCurrentIndex - 2).coerceAtLeast(0)
-        val endIndex = (startIndex + 4).coerceAtMost(lyricLines.lastIndex)
-        val realStartIndex = (endIndex - 4).coerceAtLeast(0)
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
 
+        val currentIndex =
+            lyricLines.indexOfLast {
+                position >= it.timeMs
+            }
+
+
+<<<<<<< HEAD
         val lyricWindow = lyricLines//歌词窗口
             .subList(realStartIndex, endIndex + 1)
             .map { it.text }
@@ -320,12 +781,94 @@ class MusicViewModel(
 
                     if (!isUserSeeking) {//防止当前用户在拖进度条
                         _uiState.value = _uiState.value.copy(
+=======
+        val safeIndex =
+            if (currentIndex >= 0)
+                currentIndex
+            else
+                0
+
+
+        val startIndex =
+            (safeIndex - 2)
+                .coerceAtLeast(0)
+
+
+        val endIndex =
+            (startIndex + 4)
+                .coerceAtMost(
+                    lyricLines.lastIndex
+                )
+
+
+        val realStartIndex =
+            (endIndex - 4)
+                .coerceAtLeast(0)
+
+
+        val lyricWindow =
+            lyricLines
+                .subList(
+                    realStartIndex,
+                    endIndex + 1
+                )
+                .map {
+                    it.text
+                }
+
+
+        _uiState.value =
+            _uiState.value.copy(
+                currentLyric =
+                    lyricLines[safeIndex].text,
+
+                nextLyric =
+                    lyricLines.getOrNull(
+                        safeIndex + 1
+                    )?.text ?: "",
+
+                lyricWindow = lyricWindow,
+
+                activeLyricIndex =
+                    safeIndex - realStartIndex,
+
+                fullLyricLines =
+                    lyricLines.map {
+                        it.text
+                    },
+
+                currentLyricIndex = safeIndex
+            )
+    }
+
+
+
+    private fun startProgressLoop() {
+
+        viewModelScope.launch {
+
+            while (isActive) {
+
+                val player = mediaPlayer
+
+                if (player != null && !isUserSeeking) {
+
+                    val position =
+                        player.currentPosition
+
+                    _uiState.value =
+                        _uiState.value.copy(
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
                             currentPosition = position,
-                            duration = duration
+                            duration = player.duration
                         )
 
+<<<<<<< HEAD
                         updateLyric(position)//更新进度条位置
                     }
+=======
+                    updateLyric(position)
+>>>>>>> 1f3ec53 (增加在线音乐服务器功能，目前服务器测试歌曲可被正确读取到客户端)
                 }
 
                 delay(500)
@@ -333,10 +876,14 @@ class MusicViewModel(
         }
     }
 
+
+
     override fun onCleared() {
+
         super.onCleared()
 
         mediaPlayer?.release()
+
         mediaPlayer = null
     }
-}
+    }

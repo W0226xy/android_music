@@ -3,90 +3,183 @@ package com.example.myapplication.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.MaterialTheme
+import coil.compose.AsyncImage
 import com.example.myapplication.data.Song
+import com.example.myapplication.data.SongSource
+
 
 @Composable
-fun SongItem(//单个歌曲条目组件（显示歌曲名、专辑、歌手、当前是否正在播放，是否喜欢）
+fun SongItem(
     song: Song,
     isCurrentSong: Boolean,
     isPlaying: Boolean,
     isFavorite: Boolean,
-    onSongClick: () -> Unit,//点击按钮后触发事件
+    onSongClick: () -> Unit,
     onPlayClick: () -> Unit,
     onFavoriteClick: () -> Unit
 ) {
-    Card(
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(
+                vertical = 4.dp
+            )
             .clickable {
                 onSongClick()
             },
-        shape = RoundedCornerShape(16.dp)
+
+        shape = RoundedCornerShape(12.dp),
+
+        tonalElevation = 2.dp
     ) {
+
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(12.dp),
+
             verticalAlignment = Alignment.CenterVertically
         ) {
+
+
+            // 在线歌曲显示封面
+            if (
+                song.source == SongSource.ONLINE &&
+                song.coverUrl != null
+            ) {
+
+                AsyncImage(
+
+                    model = song.coverUrl,
+
+                    contentDescription = "歌曲封面",
+
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(
+                            RoundedCornerShape(8.dp)
+                        )
+                )
+
+            }
+
+
+            Spacer(
+                modifier = Modifier.width(12.dp)
+            )
+
+
             Column(
                 modifier = Modifier.weight(1f)
             ) {
+
+
                 Text(
+
                     text = song.name,
-                    fontSize = 18.sp,
+
+                    fontSize = 16.sp,
+
                     fontWeight = FontWeight.Bold,
+
                     maxLines = 1
                 )
 
+
+                Spacer(
+                    modifier = Modifier.size(4.dp)
+                )
+
+
                 Text(
-                    text = "${song.singer} · ${song.album}",
-                    fontSize = 14.sp,
+
+                    text = song.singer,
+
+                    fontSize = 13.sp,
+
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+
                     maxLines = 1
                 )
 
-                if (isCurrentSong) {
-                    Text(
-                        text = if (isPlaying) "正在播放" else "当前歌曲",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
+
             }
 
-            TextButton(
-                onClick = onFavoriteClick
+
+            IconButton(
+                onClick = {
+                    onFavoriteClick()
+                }
             ) {
-                Text(
-                    text = if (isFavorite) "♥" else "♡",
-                    fontSize = 24.sp
+
+                Icon(
+
+                    imageVector =
+                        if (isFavorite)
+                            Icons.Default.Favorite
+                        else
+                            Icons.Default.FavoriteBorder,
+
+                    contentDescription =
+                        if (isFavorite)
+                            "取消收藏"
+                        else
+                            "收藏"
                 )
+
             }
+
 
             Button(
-                onClick = onPlayClick
+
+                onClick = {
+                    onPlayClick()
+                }
+
             ) {
+
                 Text(
-                    text = if (isCurrentSong && isPlaying) "暂停" else "播放"
+
+                    text =
+                        if (
+                            isCurrentSong &&
+                            isPlaying
+                        )
+                            "暂停"
+                        else
+                            "播放",
+
+                    fontSize = 12.sp
                 )
+
             }
+
         }
+
     }
+
 }
