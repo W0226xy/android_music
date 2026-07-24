@@ -7,10 +7,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.example.myapplication.data.MusicUiState
 import com.example.myapplication.data.Song
-
+import com.example.myapplication.data.SongSource
 // 定义应用页面状态
 enum class AppScreen {
-    MUSIC_LIST,      // 歌曲列表页
+    MUSIC_LIST,          // 本地歌曲列表
+    ONLINE_MUSIC,        // 在线歌曲列表
     PLAYER_DETAIL,   // 播放详情页
     PLAYBACK_HISTORY // 播放历史页
 }
@@ -37,7 +38,8 @@ fun AutoMusicApp(
     onFavoriteClick: (Song) -> Unit,
     onClearPlaybackHistory: () -> Unit,
     onRemoveSongFromHistory: (Song) -> Unit,
-    onLyricClick: (String) -> Unit
+    onLyricClick: (String) -> Unit,
+    onOnlineMusicClick: () -> Unit
 ) {
     var currentScreen by rememberSaveable {
         mutableStateOf(AppScreen.MUSIC_LIST)
@@ -59,6 +61,9 @@ fun AutoMusicApp(
                 onPlayModeClick = onPlayModeClick,
                 onHistoryClick = {
                     currentScreen = AppScreen.PLAYBACK_HISTORY
+                },
+                onOnlineMusicClick = {
+                    currentScreen = AppScreen.ONLINE_MUSIC
                 }
             )
         }
@@ -94,6 +99,21 @@ fun AutoMusicApp(
                 onBackClick = {
                     currentScreen = AppScreen.MUSIC_LIST
                 }
+            )
+        }
+
+        AppScreen.ONLINE_MUSIC -> {
+            OnlineMusicScreen(
+                uiState = uiState,
+                onSongClick = onSongClick,
+                onBackClick = {
+                    currentScreen = AppScreen.MUSIC_LIST
+                },
+                onFavoriteClick = onFavoriteClick,
+                onMiniPlayerClick = {
+                    currentScreen = AppScreen.PLAYER_DETAIL
+                },
+                onPlayPauseClick = onPlayPauseClick
             )
         }
     }

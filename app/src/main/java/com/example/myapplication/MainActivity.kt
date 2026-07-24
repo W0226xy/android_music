@@ -51,6 +51,9 @@ class MainActivity : ComponentActivity() {
                     onClearPlaybackHistory = musicViewModel::clearPlaybackHistory,
                     onRemoveSongFromHistory = musicViewModel::removeSongFromHistory,
                     onLyricClick = musicViewModel::onLyricClick,
+                    onOnlineMusicClick = {
+                        // 这个回调实际上由 AutoMusicApp 内部处理页面切换
+                    }
                 )
             }
         }

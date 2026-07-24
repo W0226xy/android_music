@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapplication.data.MusicUiState
 import com.example.myapplication.data.Song
+import com.example.myapplication.data.SongSource
 
 @Composable//MusicListScreen = 一个“显示音乐列表的界面”，uiState 决定显示什么，onXXX 决定用户点击后做什么。
 fun MusicListScreen(//Compose 页面函数,1. uiState：界面显示所需的状态数据 2. onXXX：用户操作时触发的回调函数
@@ -32,7 +33,9 @@ fun MusicListScreen(//Compose 页面函数,1. uiState：界面显示所需的状
     onMiniPlayerClick: () -> Unit,//点击底部迷你播放器时调用，一般用于进入播放详情页。
     onPlayPauseClick: () -> Unit,//点击底部迷你播放器里的播放 / 暂停按钮时调用。
     onPlayModeClick: () -> Unit,//点击播放模式按钮时调用
-    onHistoryClick: () -> Unit//点击播放历史按钮时调用
+    onHistoryClick: () -> Unit, //点击播放历史按钮时调用
+    onOnlineMusicClick: () -> Unit//点击在线音乐
+
 ) {
     Scaffold(//标准页面布局容器
         bottomBar = {
@@ -79,13 +82,29 @@ fun MusicListScreen(//Compose 页面函数,1. uiState：界面显示所需的状
                     .fillMaxWidth()
                     .padding(bottom = 8.dp)
             ) {
+
                 Text(
                     text = "歌曲列表",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(
+                    modifier = Modifier.weight(1f)
+                )
+
+
+                Button(
+                    onClick = onOnlineMusicClick
+                ) {
+                    Text("在线音乐")
+                }
+
+
+                Spacer(
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+
 
                 Button(
                     onClick = onPlayModeClick
@@ -93,20 +112,27 @@ fun MusicListScreen(//Compose 页面函数,1. uiState：界面显示所需的状
                     Text(uiState.playMode.label)
                 }
 
-                Spacer(modifier = Modifier.padding(start = 8.dp))
+
+                Spacer(
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+
 
                 Button(
                     onClick = onHistoryClick
                 ) {
                     Text("播放历史")
                 }
+
             }
 
             LazyColumn {//一个可滚动的垂直列表
                 items(
-                    items = uiState.filteredSongs,//返回被过滤后的若干歌曲
+                    items = uiState.filteredSongs.filter {
+                        it.source == SongSource.LOCAL
+                    },
                     key = { it.id }
-                ) { song ->
+                ){ song ->
                     val isCurrentSong = song.id == uiState.currentSongId
                     val isFavorite = uiState.favoriteSongIds.contains(song.id)
 
@@ -115,12 +141,27 @@ fun MusicListScreen(//Compose 页面函数,1. uiState：界面显示所需的状
                         isCurrentSong = isCurrentSong,
                         isPlaying = uiState.isPlaying,
                         isFavorite = isFavorite,
+
                         onSongClick = {
                             onSongClick(song)
                         },
+
                         onPlayClick = {
-                            onPlayClick(song)
+
+                            if (isCurrentSong && uiState.isPlaying) {
+
+                                // 当前歌曲正在播放
+                                onPlayPauseClick()
+
+                            } else {
+
+                                // 播放新歌曲
+                                onPlayClick(song)
+
+                            }
+
                         },
+
                         onFavoriteClick = {
                             onFavoriteClick(song)
                         }
