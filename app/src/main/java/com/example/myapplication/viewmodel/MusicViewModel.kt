@@ -925,4 +925,75 @@ class MusicViewModel(
             }
         }
     }
+
+    fun refreshOnlineSongs() {
+
+        if (_uiState.value.isRefreshingOnlineSongs) {
+            return
+        }
+
+        viewModelScope.launch {
+
+            _uiState.update {
+                it.copy(
+                    isRefreshingOnlineSongs = true
+                )
+            }
+
+            try {
+
+                Log.d(
+                    "MusicViewModel",
+                    "开始刷新在线歌曲"
+                )
+
+                val newOnlineSongs =
+                    repository.refreshOnlineSongs()
+
+                Log.d(
+                    "MusicViewModel",
+                    "刷新完成，在线歌曲数量=${newOnlineSongs.size}"
+                )
+
+                if (newOnlineSongs.isNotEmpty()) {
+
+                    _uiState.update { currentState ->
+
+                        // 保留所有非在线歌曲，也就是本地歌曲
+                        val localSongs =
+                            currentState.songs.filter {
+                                it.source != SongSource.ONLINE
+                            }
+
+                        currentState.copy(
+                            songs = localSongs + newOnlineSongs,
+                            isRefreshingOnlineSongs = false
+                        )
+                    }
+
+                } else {
+
+                    _uiState.update {
+                        it.copy(
+                            isRefreshingOnlineSongs = false
+                        )
+                    }
+                }
+
+            } catch (e: Exception) {
+
+                Log.e(
+                    "MusicViewModel",
+                    "刷新在线歌曲失败",
+                    e
+                )
+
+                _uiState.update {
+                    it.copy(
+                        isRefreshingOnlineSongs = false
+                    )
+                }
+            }
+        }
+    }
 }

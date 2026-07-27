@@ -215,4 +215,36 @@ class MusicRepository {
             .string()
     }
 
+    suspend fun refreshOnlineSongs(): List<Song> {
+
+        return try {
+
+            Log.d(
+                "Repository",
+                "开始刷新 Jamendo 在线歌曲"
+            )
+
+            // 先让服务器刷新数据库
+            RetrofitClient.apiService.refreshJamendoSongs()
+
+            Log.d(
+                "Repository",
+                "服务器刷新完成，重新获取在线歌曲"
+            )
+
+            // 再重新读取最新歌曲列表
+            getOnlineSongs()
+
+        } catch (e: Exception) {
+
+            Log.e(
+                "Repository",
+                "刷新在线歌曲失败：${e.message}",
+                e
+            )
+
+            emptyList()
+        }
+    }
+
 }

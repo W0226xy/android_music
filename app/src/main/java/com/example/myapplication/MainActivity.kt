@@ -20,40 +20,55 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
+
             MyApplicationTheme {
-                val uiState by musicViewModel.uiState.collectAsState()//让 Compose “监听” ViewModel 里的状态变化
-                //等价于val uiState: MusicUiState
-                //          get() = musicViewModel.uiState.collectAsState().value
 
-                //1.collectAsState() 会订阅 musicViewModel.uiState,相当于ui监听viewModel变化
-                //2.StateFlow 发出新值
-                //3.collectAsState 监听到 value 改变
-                //4.Compose 触发重组
+                val uiState by musicViewModel.uiState.collectAsState()
 
-                //触发重组后会执行@Composable的函数
-                //这里不是所有@Composable 函数都会重新执行，重组只会重新执行“读取了发生变化的 State 的 Composable 函数
                 AutoMusicApp(
                     uiState = uiState,
+
                     onSearchTextChange = musicViewModel::onSearchTextChange,
+
                     onSongClick = musicViewModel::playSong,
+
                     onPlayClick = musicViewModel::playSong,
+
                     onPlayPauseClick = musicViewModel::playOrPause,
+
                     onPreviousClick = musicViewModel::playPreviousSong,
+
                     onNextClick = musicViewModel::playNextSong,
+
                     onSeekForwardClick = musicViewModel::seekForward10s,
+
                     onSeekBackwardClick = musicViewModel::seekBackward10s,
+
                     onProgressChange = musicViewModel::onProgressChange,
+
                     onSeekFinished = musicViewModel::onSeekFinished,
+
                     onVolumeChange = musicViewModel::changeVolume,
+
                     onPlaybackSpeedChange = musicViewModel::changePlaybackSpeed,
+
                     onPlayModeClick = musicViewModel::changePlayMode,
+
                     onFavoriteClick = musicViewModel::toggleFavorite,
+
                     onClearPlaybackHistory = musicViewModel::clearPlaybackHistory,
+
                     onRemoveSongFromHistory = musicViewModel::removeSongFromHistory,
+
                     onLyricClick = musicViewModel::onLyricClick,
+
                     onOnlineMusicClick = {
-                        // 这个回调实际上由 AutoMusicApp 内部处理页面切换
-                    }
+                        // 页面切换由 AutoMusicApp 内部处理
+                    },
+
+
+                    onRefreshOnlineSongs =
+                        musicViewModel::refreshOnlineSongs
                 )
             }
         }

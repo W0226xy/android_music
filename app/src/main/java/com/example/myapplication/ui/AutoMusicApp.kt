@@ -39,7 +39,8 @@ fun AutoMusicApp(
     onClearPlaybackHistory: () -> Unit,
     onRemoveSongFromHistory: (Song) -> Unit,
     onLyricClick: (String) -> Unit,
-    onOnlineMusicClick: () -> Unit
+    onOnlineMusicClick: () -> Unit,
+    onRefreshOnlineSongs: () -> Unit
 ) {
     var currentScreen by rememberSaveable {
         mutableStateOf(AppScreen.MUSIC_LIST)
@@ -109,15 +110,24 @@ fun AutoMusicApp(
         AppScreen.ONLINE_MUSIC -> {
             OnlineMusicScreen(
                 uiState = uiState,
+
                 onSongClick = onSongClick,
+
                 onBackClick = {
                     currentScreen = AppScreen.MUSIC_LIST
                 },
+
                 onFavoriteClick = onFavoriteClick,
+
                 onMiniPlayerClick = {
                     currentScreen = AppScreen.PLAYER_DETAIL
                 },
-                onPlayPauseClick = onPlayPauseClick
+
+                onPlayPauseClick = onPlayPauseClick,
+
+                onMoreSongsClick = onRefreshOnlineSongs,
+
+                isRefreshing = uiState.isRefreshingOnlineSongs
             )
         }
     }

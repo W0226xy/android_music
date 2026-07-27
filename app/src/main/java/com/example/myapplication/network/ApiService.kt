@@ -23,6 +23,8 @@ interface ApiService {
     @GET("songs/jamendo")
     suspend fun getJamendoSongs(): List<OnlineSongDto>
 
+    @GET("songs/jamendo/refresh")
+    suspend fun refreshJamendoSongs(): ResponseBody
 
     @GET("songs/{id}/lyrics")
     suspend fun getOnlineLyrics(

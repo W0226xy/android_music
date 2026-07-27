@@ -8,6 +8,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class JamendoService {
@@ -20,15 +21,21 @@ public class JamendoService {
 
     public List<Song> getTracks() {
 
+        int offset = ThreadLocalRandom.current()
+                .nextInt(0, 500);
+
         String url =
                 "https://api.jamendo.com/v3.0/tracks/"
                         + "?client_id=" + CLIENT_ID
                         + "&format=json"
                         + "&limit=20"
+                        + "&offset=" + offset
                         + "&order=popularity_total"
                         + "&audioformat=mp32"
                         + "&imagesize=300"
                         + "&include=lyrics";
+
+        System.out.println("Jamendo请求offset：" + offset);
 
         return requestSongs(url);
     }
