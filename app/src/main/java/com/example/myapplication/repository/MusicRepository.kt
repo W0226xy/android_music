@@ -144,8 +144,9 @@ class MusicRepository {
 
 
                 Song(
-
-                    // 在线歌曲使用独立 ID，避免和本地歌曲冲突
+                    // 服务器真实ID
+                    serverId = id,
+                    // 应用内部ID（独立ID，避免和本地歌曲冲突）
                     id = id + 10000,
 
 
@@ -206,6 +207,12 @@ class MusicRepository {
 
         }
 
+    }
+
+    suspend fun getOnlineLyrics(songId: Long): String {//获取在线音乐歌曲歌词
+        return RetrofitClient.apiService
+            .getOnlineLyrics(songId)
+            .string()
     }
 
 }

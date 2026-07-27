@@ -27,4 +27,15 @@ public class SongService {
 
     }
 
+    public String getLyrics(Long id) {
+
+        String lyrics = songMapper.findLyricsById(id);
+
+        if (lyrics == null || lyrics.isBlank()) {
+            return "";
+        }
+
+        return lyrics;
+    }
+
 }

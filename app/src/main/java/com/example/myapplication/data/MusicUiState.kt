@@ -17,6 +17,7 @@ data class MusicUiState(//音乐播放器当前界面状态
     val activeLyricIndex: Int = -1,//当前高亮歌词在 lyricWindow 里的下标
     val fullLyricLines: List<String> = emptyList(),//完整歌词列表用于滚动显示
     val currentLyricIndex: Int = -1,//当前歌词在完整列表中的索引
+    val isPlainLyrics: Boolean = false,
     val playbackHistory: List<Song> = emptyList(),//播放历史记录列表
     val playbackSpeed: Float = 1f//播放速度，默认为1倍速
 ) {//currentSong 和 filteredSongs 是派生/计算属性，它们的值完全由其他属性决定

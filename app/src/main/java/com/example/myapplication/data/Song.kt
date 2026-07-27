@@ -42,6 +42,9 @@ data class Song(
     val lyricUrl: String? = null,
 
 
+    // 服务器真实ID（仅在线歌曲使用）
+    val serverId: Int? = null,
+
     // 歌曲来源
     val source: SongSource = SongSource.LOCAL
 

@@ -1,5 +1,5 @@
 package com.example.myapplication.viewmodel
-
+import kotlinx.coroutines.flow.update
 import android.app.Application
 import android.media.MediaPlayer
 import android.net.Uri
@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.collections.emptyList
 
 class MusicViewModel(
     application: Application
@@ -96,17 +97,55 @@ class MusicViewModel(
      */
     fun playSong(song: Song) {
 
+        // 释放上一首歌曲的 MediaPlayer
         mediaPlayer?.release()
+        mediaPlayer = null
+
+        // 清空上一首歌曲的歌词状态
+        lyricLines = emptyList()
+
+        _uiState.value = _uiState.value.copy(
+            currentSongId = song.id,
+            isPlaying = false,
+            currentPosition = 0,
+            duration = 0,
+            currentLyric = "等待歌词...",
+            nextLyric = "",
+            lyricWindow = emptyList(),
+            activeLyricIndex = -1,
+            fullLyricLines = emptyList(),
+            currentLyricIndex = -1,
+            isPlainLyrics = false,
+            playbackSpeed = 1f
+        )
 
         val player = MediaPlayer()
         mediaPlayer = player
 
         try {
-
             if (song.source == SongSource.LOCAL) {
 
+                val audioResId = song.audioResId
+
+                // 防止本地歌曲没有音频资源
+                if (audioResId == null || audioResId == 0) {
+                    Log.e(
+                        "MusicViewModel",
+                        "本地歌曲资源不存在：${song.name}"
+                    )
+
+                    _uiState.value = _uiState.value.copy(
+                        currentLyric = "音频资源不存在",
+                        isPlaying = false
+                    )
+
+                    player.release()
+                    mediaPlayer = null
+                    return
+                }
+
                 val uri = Uri.parse(
-                    "android.resource://${context.packageName}/${song.audioResId}"
+                    "android.resource://${context.packageName}/$audioResId"
                 )
 
                 player.setDataSource(
@@ -114,8 +153,10 @@ class MusicViewModel(
                     uri
                 )
 
+                // 本地资源可以同步准备
                 player.prepare()
 
+                // 加载本地带时间戳歌词
                 loadLyrics(song)
 
                 player.setVolume(
@@ -125,6 +166,19 @@ class MusicViewModel(
 
                 player.setOnCompletionListener {
                     handleSongCompletion(song)
+                }
+
+                player.setOnErrorListener { _, what, extra ->
+                    Log.e(
+                        "MusicViewModel",
+                        "本地歌曲播放错误：what=$what，extra=$extra"
+                    )
+
+                    _uiState.value = _uiState.value.copy(
+                        isPlaying = false
+                    )
+
+                    true
                 }
 
                 player.start()
@@ -141,9 +195,28 @@ class MusicViewModel(
 
             } else {
 
-                val url = song.url ?: return
+                val url = song.url
 
-                Log.d("MusicViewModel", "开始播放在线歌曲：$url")
+                if (url.isNullOrBlank()) {
+                    Log.e(
+                        "MusicViewModel",
+                        "在线歌曲地址为空：${song.name}"
+                    )
+
+                    _uiState.value = _uiState.value.copy(
+                        currentLyric = "歌曲地址不存在",
+                        isPlaying = false
+                    )
+
+                    player.release()
+                    mediaPlayer = null
+                    return
+                }
+
+                Log.d(
+                    "MusicViewModel",
+                    "开始加载在线歌曲：name=${song.name}, id=${song.id}, url=$url"
+                )
 
                 player.setDataSource(url)
 
@@ -152,23 +225,31 @@ class MusicViewModel(
                     _uiState.value.volume
                 )
 
-                player.setOnPreparedListener {
+                player.setOnPreparedListener { preparedPlayer ->
 
-                    Log.d("MusicViewModel", "网络歌曲准备完成")
-
-                    loadLyrics(song)
-
-                    it.start()
                     Log.d(
                         "MusicViewModel",
-                        "开始播放，duration=${it.duration}"
+                        "网络歌曲准备完成：${song.name}"
+                    )
+
+                    /*
+                     * 在线歌词通过服务器接口加载：
+                     * GET /songs/{id}/lyrics
+                     */
+                    loadOnlineLyrics(song)
+
+                    preparedPlayer.start()
+
+                    Log.d(
+                        "MusicViewModel",
+                        "在线歌曲开始播放，duration=${preparedPlayer.duration}"
                     )
 
                     _uiState.value = _uiState.value.copy(
                         currentSongId = song.id,
                         isPlaying = true,
                         currentPosition = 0,
-                        duration = it.duration,
+                        duration = preparedPlayer.duration,
                         playbackSpeed = 1f
                     )
 
@@ -183,12 +264,17 @@ class MusicViewModel(
 
                     Log.e(
                         "MusicViewModel",
-                        "MediaPlayer error what=$what extra=$extra"
+                        "在线歌曲播放错误：what=$what，extra=$extra，song=${song.name}"
+                    )
+
+                    _uiState.value = _uiState.value.copy(
+                        isPlaying = false
                     )
 
                     true
                 }
 
+                // 在线歌曲必须异步准备
                 player.prepareAsync()
             }
 
@@ -196,12 +282,19 @@ class MusicViewModel(
 
             Log.e(
                 "MusicViewModel",
-                "playSong error",
+                "播放歌曲失败：${song.name}",
                 e
             )
 
+            player.release()
+
+            if (mediaPlayer === player) {
+                mediaPlayer = null
+            }
+
             _uiState.value = _uiState.value.copy(
-                isPlaying = false
+                isPlaying = false,
+                currentLyric = "歌曲播放失败"
             )
         }
     }
@@ -555,6 +648,10 @@ class MusicViewModel(
 
                     SongSource.LOCAL -> {
 
+                        _uiState.value = _uiState.value.copy(
+                            isPlainLyrics = false
+                        )
+
                         if (song.lyricResId != null) {
 
                             LyricParser.parseLrc(
@@ -585,6 +682,10 @@ class MusicViewModel(
     }
 
     private fun updateLyric(position: Int) {
+
+        if (_uiState.value.isPlainLyrics) {
+            return
+        }
 
         if (lyricLines.isEmpty()) {
 
@@ -705,4 +806,123 @@ class MusicViewModel(
 
         mediaPlayer = null
     }
+
+    private fun loadOnlineLyrics(song: Song) {
+        viewModelScope.launch {
+
+            // 开始加载前，清空上一首歌曲的歌词
+            _uiState.value = _uiState.value.copy(
+                currentLyric = "等待歌词...",
+                nextLyric = "",
+                lyricWindow = emptyList(),
+                activeLyricIndex = -1,
+                fullLyricLines = emptyList(),
+                currentLyricIndex = -1
+            )
+
+            try {
+
+                Log.d(
+                    "MusicViewModel",
+                    "开始请求在线歌词：song=${song.name}, id=${song.id}"
+                )
+                val lyricsText =
+                    repository.getOnlineLyrics(
+                        (song.serverId ?: song.id).toLong()
+                    )
+
+
+                Log.d(
+                    "MusicViewModel",
+                    "歌词请求完成：song=${song.name}, id=${song.id}, length=${lyricsText.length}, content=${lyricsText.take(100)}"
+                )
+
+                // 当前播放歌曲已经切换，则放弃这次请求结果
+                if (_uiState.value.currentSongId != song.id) {
+                    return@launch
+                }
+
+                if (lyricsText.isBlank()) {
+                    Log.d(
+                        "MusicViewModel",
+                        "在线歌曲暂无歌词：${song.name}"
+                    )
+
+                    _uiState.value = _uiState.value.copy(
+                        currentLyric = "等待歌词...",
+                        nextLyric = "",
+                        lyricWindow = emptyList(),
+                        activeLyricIndex = -1,
+                        fullLyricLines = emptyList(),
+                        currentLyricIndex = -1
+                    )
+
+                    return@launch
+                }
+
+                if (LyricParser.hasTimestamp(lyricsText)) {
+                    // 有时间戳：继续使用原来的歌词同步逻辑
+                    val timedLyrics =
+                        LyricParser.parseTimedLyrics(lyricsText)
+
+                    lyricLines = timedLyrics
+
+                    updateLyric(0)
+
+                    _uiState.value = _uiState.value.copy(
+                        currentLyric = "等待歌词...",
+                        nextLyric = "",
+                        lyricWindow = emptyList(),
+                        activeLyricIndex = -1,
+                        fullLyricLines = emptyList(),
+                        currentLyricIndex = -1
+                    )
+
+                    Log.d(
+                        "MusicViewModel",
+                        "时间轴歌词加载成功，歌曲=${song.name}，行数=${timedLyrics.size}"
+                    )
+                } else {
+                    // 无时间戳：完整显示，用户手动滚动
+                    val plainLyrics =
+                        LyricParser.parsePlainLyrics(lyricsText)
+
+                    lyricLines = emptyList()
+
+                    _uiState.value = _uiState.value.copy(
+                        currentLyric = "",
+                        nextLyric = "",
+                        lyricWindow = emptyList(),
+                        activeLyricIndex = -1,
+                        fullLyricLines = plainLyrics,
+                        currentLyricIndex = -1,
+                        isPlainLyrics = true
+                    )
+
+                    Log.d(
+                        "MusicViewModel",
+                        "普通歌词加载成功，歌曲=${song.name}，行数=${plainLyrics.size}"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(
+                    "MusicViewModel",
+                    "在线歌词加载失败，歌曲=${song.name}",
+                    e
+                )
+
+                // 只有当前仍在播放这首歌时才更新状态
+                if (_uiState.value.currentSongId == song.id) {
+                    _uiState.value = _uiState.value.copy(
+                        currentLyric = "等待歌词...",
+                        nextLyric = "",
+                        lyricWindow = emptyList(),
+                        activeLyricIndex = -1,
+                        fullLyricLines = emptyList(),
+                        currentLyricIndex = -1
+                    )
+                }
+            }
+        }
     }
+}

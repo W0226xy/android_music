@@ -1,7 +1,9 @@
 package com.example.myapplication.network
 
 import com.example.myapplication.data.OnlineSongDto
+import okhttp3.ResponseBody
 import retrofit2.http.GET
+import retrofit2.http.Path
 
 
 interface ApiService {
@@ -21,4 +23,9 @@ interface ApiService {
     @GET("songs/jamendo")
     suspend fun getJamendoSongs(): List<OnlineSongDto>
 
+
+    @GET("songs/{id}/lyrics")
+    suspend fun getOnlineLyrics(
+        @Path("id") songId: Long
+    ): ResponseBody
 }

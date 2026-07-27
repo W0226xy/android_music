@@ -15,6 +15,26 @@ public class Song {
 
     private String lyricUrl;
 
+    private String source;
+
+    private String lyrics;
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getLyrics() {
+        return lyrics;
+    }
+
+    public void setLyrics(String lyrics) {
+        this.lyrics = lyrics;
+    }
+
+
+    public void setSource(String source) {
+        this.source = source;
+    }
 
     public Long getId() {
         return id;

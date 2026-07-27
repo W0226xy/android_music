@@ -72,7 +72,11 @@ fun AutoMusicApp(
             PlayerDetailScreen(
                 uiState = uiState,
                 onBackClick = {
-                    currentScreen = AppScreen.MUSIC_LIST
+                    currentScreen = when (uiState.currentSong?.source) {
+                        SongSource.ONLINE -> AppScreen.ONLINE_MUSIC
+                        SongSource.LOCAL -> AppScreen.MUSIC_LIST
+                        null -> AppScreen.MUSIC_LIST
+                    }
                 },
                 onPlayPauseClick = onPlayPauseClick,
                 onPreviousClick = onPreviousClick,
