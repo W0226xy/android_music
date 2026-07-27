@@ -106,7 +106,7 @@ class MusicRepository {
         return try {
 
 
-            val result = RetrofitClient.apiService.getSongs()
+            val result = RetrofitClient.apiService.getJamendoSongs()
 
 
             Log.d(
