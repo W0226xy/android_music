@@ -3,21 +3,21 @@ package com.music.server.entity;
 
 public class Song {
 
-    private Long id;
+    private Long id;//歌曲id
 
-    private String name;
+    private String name;//歌曲名称
 
-    private String artist;
+    private String artist;//歌手
 
-    private String url;
+    private String url;//歌曲播放地址
 
-    private String coverUrl;
+    private String coverUrl;//歌曲封面地址
 
-    private String lyricUrl;
+    private String lyricUrl;//歌词地址，实际客户端没有用到这个，服务器从jamendo获取到歌词之后存到了mysql，后续客户端要查歌词，是通过歌曲id去mysql里查
 
-    private String source;
+    private String source;//标记是本地测试音乐还是Jamendo获取的音乐
 
-    private String lyrics;
+    private String lyrics;//歌词
 
     public String getSource() {
         return source;

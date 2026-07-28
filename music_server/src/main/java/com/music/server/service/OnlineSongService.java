@@ -8,7 +8,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 
-@Service
+//从数据库缓存中获取在线歌曲，如果没有缓存，则调用 Jamendo 在线音乐接口获取歌曲，并将结果保存到数据库，实现在线歌曲的缓存管理。
+//为什么要缓存：如果每次打开在线音乐页面都直接请求第三方音乐平台：请求速度慢、第三方接口压力大、可能受到接口访问限制
+
+@Service//表示这是 Spring 的业务层组件。
 public class OnlineSongService {
 
 
@@ -19,8 +22,8 @@ public class OnlineSongService {
 
 
     public OnlineSongService(
-            SongMapper songMapper,
-            JamendoService jamendoService
+            SongMapper songMapper,//操作数据库中的歌曲数据
+            JamendoService jamendoService//调用Jamendo在线音乐API（eg：jamendoService.getTracks();）
     ) {
 
         this.songMapper = songMapper;
@@ -39,7 +42,7 @@ public class OnlineSongService {
     public List<Song> getOnlineSongs() {
 
 
-        // 1. 查询缓存
+        // 1. 先查数据库有没有已经保存的在线歌曲缓存。
         List<Song> songs =
                 songMapper.findJamendoSongs();
 
@@ -53,7 +56,7 @@ public class OnlineSongService {
 
 
 
-        // 2. 没有缓存，请求Jamendo
+        // 2. 没有缓存，请求Jamendo获取歌曲
 
         songs =
                 jamendoService.getTracks();

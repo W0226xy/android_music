@@ -120,7 +120,7 @@ fun OnlineMusicScreen(
 
             } else {
 
-                LazyColumn(
+                LazyColumn(//类似RecyclerView，用于高效显示歌曲列表，比如服务器返回了100首音乐，只加载当前可见的20首
                     modifier = Modifier.fillMaxSize()
                 ) {
 

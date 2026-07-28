@@ -4,27 +4,35 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 
-object RetrofitClient {
+object RetrofitClient {//网络客户端配置
 
 
     /**
-     * Spring Boot服务器地址
+     * 服务器基础URL
      *
-     * Android模拟器访问电脑localhost:
-     * 10.0.2.2 = 电脑localhost
+     * 用于Android模拟器访问本地开发服务器
+     * 10.0.2.2 对应电脑的localhost地址
      */
     private const val BASE_URL = "http://10.0.2.2:8080/"
 
 
-    val apiService: ApiService by lazy {
+    /**
+     * API服务实例
+     *
+     * 使用懒加载初始化Retrofit客户端并创建ApiService接口实现
+     *
+     * @return 配置好的ApiService实例
+     */
+    val apiService: ApiService by lazy {//by lazy第一次使用apiService 时才创建对象（用户不进入在线音乐不需要加载，浪费资源）
+        //ApiService是自定义的接口，获取jamendo在线歌曲、刷新歌曲、获取歌词
 
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
+        Retrofit.Builder()//一个 Android 网络请求框架，用接口形式封装 HTTP 请求。
+            .baseUrl(BASE_URL)//服务器基础地址
             .addConverterFactory(
-                GsonConverterFactory.create()
+                GsonConverterFactory.create()//JSON 转换器，将服务器返回的 JSON 数据自动转换成 Kotlin 对象
             )
-            .build()
-            .create(ApiService::class.java)
+            .build()//创建 Retrofit 实例
+            .create(ApiService::class.java)//创建 ApiService 接口的实现
 
     }
 

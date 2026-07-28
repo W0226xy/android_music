@@ -54,7 +54,7 @@ class MusicViewModel(
      * 加载本地歌曲 + 服务器歌曲
      */
     private fun loadSongs() {
-        viewModelScope.launch {
+        viewModelScope.launch {//协程处理网络异步，因为网络请求要发送请求、等待服务器、最后返回数据。不能因此阻塞主线程
 
             Log.d(
                 "MusicViewModel",

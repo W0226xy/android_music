@@ -9,9 +9,11 @@ import com.example.myapplication.network.RetrofitClient
 
 class MusicRepository {
 
-
     /**
-     * 获取本地歌曲
+     * 获取本地歌曲列表
+     * 返回硬编码在应用内的本地歌曲数据
+     *
+     * @return 本地歌曲列表
      */
     fun getLocalSongs(): List<Song> {
 
@@ -101,20 +103,20 @@ class MusicRepository {
     /**
      * 获取服务器歌曲
      */
-    suspend fun getOnlineSongs(): List<Song> {
+    suspend fun getOnlineSongs(): List<Song> {//suspend 说明这是一个挂起函数。因为网络请求耗时,不能因此阻塞主线程。
+    //suspend一般表示这个函数应该在协程中被调用
+        return try {//这里try catch是防止网络异常导致app崩溃
 
-        return try {
 
-
-            val result = RetrofitClient.apiService.getJamendoSongs()
-
+            val result = RetrofitClient.apiService.getJamendoSongs()//调用服务器接口获取Jamendo歌曲
+            //JamendoService会返回json格式数据，Retrofit + Gson会转化为类似list<song>的对象
 
             Log.d(
                 "Repository",
                 "server result=$result"
             )
 
-
+            //遍历服务器返回的每一首歌曲
             result.mapNotNull { dto ->
 
                 Log.d(
@@ -122,10 +124,9 @@ class MusicRepository {
                     "coverUrl=${dto.coverUrl}"
                 )
 
-
-                val id = dto.id
-                val name = dto.name
-                val url = dto.url
+                val id = dto.id//歌曲id
+                val name = dto.name//歌曲名称
+                val url = dto.url//播放地址
 
 
                 // 过滤无效数据
@@ -148,6 +149,9 @@ class MusicRepository {
                     serverId = id,
                     // 应用内部ID（独立ID，避免和本地歌曲冲突）
                     id = id + 10000,
+                    //左边的id是客户端的Song id
+                    //右边id是从服务器获取到的歌曲id
+
 
 
                     name = name,
@@ -209,12 +213,25 @@ class MusicRepository {
 
     }
 
+    /**
+     * 获取在线歌曲的歌词
+     * 通过歌曲ID从服务器获取对应歌词
+     *
+     * @param songId 歌曲ID
+     * @return 歌词字符串
+     */
     suspend fun getOnlineLyrics(songId: Long): String {//获取在线音乐歌曲歌词
         return RetrofitClient.apiService
             .getOnlineLyrics(songId)
             .string()
     }
 
+    /**
+     * 刷新在线歌曲列表
+     * 先请求服务器刷新Jamendo数据库，然后重新获取最新歌曲
+     *
+     * @return 刷新后的在线歌曲列表
+     */
     suspend fun refreshOnlineSongs(): List<Song> {
 
         return try {
