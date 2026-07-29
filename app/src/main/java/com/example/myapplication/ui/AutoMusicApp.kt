@@ -1,6 +1,7 @@
 package com.example.myapplication.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -8,21 +9,19 @@ import androidx.compose.runtime.setValue
 import com.example.myapplication.data.MusicUiState
 import com.example.myapplication.data.Song
 import com.example.myapplication.data.SongSource
+
 // 定义应用页面状态
 enum class AppScreen {
-    MUSIC_LIST,          // 本地歌曲列表
-    ONLINE_MUSIC,        // 在线歌曲列表
-    PLAYER_DETAIL,   // 播放详情页
-    PLAYBACK_HISTORY // 播放历史页
+    MUSIC_LIST,
+    ONLINE_MUSIC,
+    PLAYER_DETAIL,
+    PLAYBACK_HISTORY
 }
 
-//View 层只做两件事：显示 uiState
-//把用户操作通过 onXXX 回调传出去
-
-@Composable//Compose 的核心思想：状态变了，界面自动刷新
+@Composable
 fun AutoMusicApp(
     uiState: MusicUiState,
-    onSearchTextChange: (String) -> Unit,//接收一个string类型参数，返回值Unit，相当于void
+    onSearchTextChange: (String) -> Unit,
     onSongClick: (Song) -> Unit,
     onPlayClick: (Song) -> Unit,
     onPlayPauseClick: () -> Unit,
@@ -40,31 +39,55 @@ fun AutoMusicApp(
     onRemoveSongFromHistory: (Song) -> Unit,
     onLyricClick: (String) -> Unit,
     onOnlineMusicClick: () -> Unit,
-    onRefreshOnlineSongs: () -> Unit
+    onRefreshOnlineSongs: () -> Unit,
+
+    // 每次点击系统媒体通知时，这个值都会变化。
+    openPlayerRequest: Int = 0
 ) {
     var currentScreen by rememberSaveable {
-        mutableStateOf(AppScreen.MUSIC_LIST)
+        mutableStateOf(
+            AppScreen.MUSIC_LIST
+        )
     }
 
-    // 根据当前页面状态决定显示哪个界面
+    LaunchedEffect(
+        openPlayerRequest
+    ) {
+        if (openPlayerRequest > 0) {
+            currentScreen =
+                AppScreen.PLAYER_DETAIL
+        }
+    }
+
     when (currentScreen) {
         AppScreen.MUSIC_LIST -> {
             MusicListScreen(
                 uiState = uiState,
-                onSearchTextChange = onSearchTextChange,
-                onSongClick = onSongClick,
-                onPlayClick = onPlayClick,
-                onFavoriteClick = onFavoriteClick,
+                onSearchTextChange =
+                    onSearchTextChange,
+                onSongClick =
+                    onSongClick,
+                onPlayClick =
+                    onPlayClick,
+                onFavoriteClick =
+                    onFavoriteClick,
                 onMiniPlayerClick = {
-                    currentScreen = AppScreen.PLAYER_DETAIL
+                    currentScreen =
+                        AppScreen.PLAYER_DETAIL
                 },
-                onPlayPauseClick = onPlayPauseClick,
-                onPlayModeClick = onPlayModeClick,
+                onPlayPauseClick =
+                    onPlayPauseClick,
+                onPlayModeClick =
+                    onPlayModeClick,
                 onHistoryClick = {
-                    currentScreen = AppScreen.PLAYBACK_HISTORY
+                    currentScreen =
+                        AppScreen.PLAYBACK_HISTORY
                 },
                 onOnlineMusicClick = {
-                    currentScreen = AppScreen.ONLINE_MUSIC
+                    onOnlineMusicClick()
+
+                    currentScreen =
+                        AppScreen.ONLINE_MUSIC
                 }
             )
         }
@@ -73,36 +96,63 @@ fun AutoMusicApp(
             PlayerDetailScreen(
                 uiState = uiState,
                 onBackClick = {
-                    currentScreen = when (uiState.currentSong?.source) {
-                        SongSource.ONLINE -> AppScreen.ONLINE_MUSIC
-                        SongSource.LOCAL -> AppScreen.MUSIC_LIST
-                        null -> AppScreen.MUSIC_LIST
-                    }
+                    currentScreen =
+                        when (
+                            uiState
+                                .currentSong
+                                ?.source
+                        ) {
+                            SongSource.ONLINE ->
+                                AppScreen.ONLINE_MUSIC
+
+                            SongSource.LOCAL ->
+                                AppScreen.MUSIC_LIST
+
+                            null ->
+                                AppScreen.MUSIC_LIST
+                        }
                 },
-                onPlayPauseClick = onPlayPauseClick,
-                onPreviousClick = onPreviousClick,
-                onNextClick = onNextClick,
-                onSeekForwardClick = onSeekForwardClick,
-                onSeekBackwardClick = onSeekBackwardClick,
-                onProgressChange = onProgressChange,
-                onSeekFinished = onSeekFinished,
-                onVolumeChange = onVolumeChange,
-                onPlaybackSpeedChange = onPlaybackSpeedChange,
-                onLyricClick = onLyricClick
+                onPlayPauseClick =
+                    onPlayPauseClick,
+                onPreviousClick =
+                    onPreviousClick,
+                onNextClick =
+                    onNextClick,
+                onSeekForwardClick =
+                    onSeekForwardClick,
+                onSeekBackwardClick =
+                    onSeekBackwardClick,
+                onProgressChange =
+                    onProgressChange,
+                onSeekFinished =
+                    onSeekFinished,
+                onVolumeChange =
+                    onVolumeChange,
+                onPlaybackSpeedChange =
+                    onPlaybackSpeedChange,
+                onLyricClick =
+                    onLyricClick
             )
         }
 
         AppScreen.PLAYBACK_HISTORY -> {
             PlaybackHistoryScreen(
-                playbackHistory = uiState.playbackHistory,
-                onSongClick = { song ->
+                playbackHistory =
+                    uiState.playbackHistory,
+                onSongClick = {
+                        song ->
                     onSongClick(song)
-                    currentScreen = AppScreen.MUSIC_LIST
+
+                    currentScreen =
+                        AppScreen.MUSIC_LIST
                 },
-                onClearHistory = onClearPlaybackHistory,
-                onRemoveSong = onRemoveSongFromHistory,
+                onClearHistory =
+                    onClearPlaybackHistory,
+                onRemoveSong =
+                    onRemoveSongFromHistory,
                 onBackClick = {
-                    currentScreen = AppScreen.MUSIC_LIST
+                    currentScreen =
+                        AppScreen.MUSIC_LIST
                 }
             )
         }
@@ -110,24 +160,25 @@ fun AutoMusicApp(
         AppScreen.ONLINE_MUSIC -> {
             OnlineMusicScreen(
                 uiState = uiState,
-
-                onSongClick = onSongClick,
-
+                onSongClick =
+                    onSongClick,
                 onBackClick = {
-                    currentScreen = AppScreen.MUSIC_LIST
+                    currentScreen =
+                        AppScreen.MUSIC_LIST
                 },
-
-                onFavoriteClick = onFavoriteClick,
-
+                onFavoriteClick =
+                    onFavoriteClick,
                 onMiniPlayerClick = {
-                    currentScreen = AppScreen.PLAYER_DETAIL
+                    currentScreen =
+                        AppScreen.PLAYER_DETAIL
                 },
-
-                onPlayPauseClick = onPlayPauseClick,
-
-                onMoreSongsClick = onRefreshOnlineSongs,
-
-                isRefreshing = uiState.isRefreshingOnlineSongs
+                onPlayPauseClick =
+                    onPlayPauseClick,
+                onMoreSongsClick =
+                    onRefreshOnlineSongs,
+                isRefreshing =
+                    uiState
+                        .isRefreshingOnlineSongs
             )
         }
     }

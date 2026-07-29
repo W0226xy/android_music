@@ -48,6 +48,18 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
+    // Media3
+    val media3Version = "1.10.1"
+
+    // ExoPlayer 播放器
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+
+    // MediaSession、MediaController、后台播放服务
+    implementation("androidx.media3:media3-session:$media3Version")
+
+
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
