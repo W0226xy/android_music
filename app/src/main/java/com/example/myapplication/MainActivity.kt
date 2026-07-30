@@ -34,20 +34,38 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+//MainActivity 主要功能
+//1. 连接 PlaybackService
+//2. 把 UI 操作转换成 MediaController 命令
+//3. 把播放器状态同步回 MusicViewModel
+
+//整体流程：
+//Compose UI
+//   ↓
+//MainActivity//负责 UI 交互和状态同步
+//   ↓
+//MediaController//MainActivity 控制播放器的工具
+//   ↓
+//MediaSession//连接系统和播放器
+//   ↓
+//PlaybackService//播放音乐
+//   ↓
+//ExoPlayer//执行音频播放
+
 class MainActivity : ComponentActivity() {
 
     private val musicViewModel:
             MusicViewModel by viewModels()
 
-    private var controllerFuture:
+    private var controllerFuture://异步连接 MediaController 的 Future 对象
             ListenableFuture<MediaController>? =
         null
 
-    private var mediaController:
-            MediaController? =
-        null
+    private var mediaController://UI 控制后台播放器的“遥控器”
+            MediaController? = null
 
-    private var progressJob:
+
+    private var progressJob://定期同步播放进度到 UI 的后台协程
             Job? =
         null
 
@@ -55,13 +73,13 @@ class MainActivity : ComponentActivity() {
      * 每次点击系统媒体通知时自增，
      * AutoMusicApp 监听这个值并打开播放详情页。
      */
-    private var openPlayerRequest by
+    private var openPlayerRequest by//点击系统媒体通知时自增，用于触发打开播放详情页
     mutableStateOf(0)
 
     private val playerListener =
-        object : Player.Listener {
+        object : Player.Listener {//监听后台 ExoPlayer 的变化
 
-            override fun onMediaItemTransition(
+            override fun onMediaItemTransition(//歌曲切换
                 mediaItem: MediaItem?,
                 reason: Int
             ) {
@@ -86,21 +104,21 @@ class MainActivity : ComponentActivity() {
                     )
             }
 
-            override fun onIsPlayingChanged(
+            override fun onIsPlayingChanged(//播放状态改变，暂停-播放
                 isPlaying: Boolean
             ) {
                 mediaController
                     ?.let(::syncControllerState)
             }
 
-            override fun onPlaybackStateChanged(
+            override fun onPlaybackStateChanged(//播放器状态改变，正在播放，播放结束
                 playbackState: Int
             ) {
                 mediaController
                     ?.let(::syncControllerState)
             }
 
-            override fun onPlayerError(
+            override fun onPlayerError(//播放失败，比如歌曲url无效
                 error: PlaybackException
             ) {
                 Log.e(
@@ -116,7 +134,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-    override fun onCreate(
+    override fun onCreate(//Activity 生命周期：创建 Compose UI
         savedInstanceState: Bundle?
     ) {
         super.onCreate(
@@ -124,17 +142,19 @@ class MainActivity : ComponentActivity() {
         )
 
         enableEdgeToEdge()
-
-        handlePlaybackIntent(intent)
+        //处理来自系统通知的点击事件
+        handlePlaybackIntent(intent)//用户是不是点击系统播放通知进入 App 的？ 如果是，就需要进入播放详情页。
 
         setContent {
-            MyApplicationTheme {
+            MyApplicationTheme {//应用主题设置
                 val uiState by
+                //从 ViewModel 收集 UI 状态
                 musicViewModel
                     .uiState
                     .collectAsState()
 
-                AutoMusicApp(
+
+                AutoMusicApp(//这里是 UI 操作进入播放系统的入口
                     uiState = uiState,
 
                     onSearchTextChange =
@@ -237,6 +257,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    //当用户通过通知栏重新进入应用时触发
     override fun onNewIntent(
         intent: Intent
     ) {
@@ -246,81 +267,98 @@ class MainActivity : ComponentActivity() {
         handlePlaybackIntent(intent)
     }
 
-    override fun onStart() {
+    //Activity 进入前台后就开始连接后台播放器。（包括首次启动和从后台恢复）
+    override fun onStart() {//Step 1 — onStart() 触发连接
         super.onStart()
-        connectMediaController()
+        connectMediaController()//连接 PlaybackService 中的媒体会话
     }
 
-    override fun onStop() {
-        progressJob?.cancel()
+    //Activity 进入后台时清理资源
+    override fun onStop() {//onStop() 在 Activity 不再可见时触发——按 Home 键、切换到其他 App、或者新 Activity 覆盖当前页面。
+        // 注意它 不是 onDestroy()，所以 Activity 实例还在内存里，只是不可见。
+        progressJob?.cancel()//这是每500ms刷新进度的协程，可以关闭掉节省cpu（不显示ui了，不需要它的功能了）
         progressJob = null
 
-        mediaController?.removeListener(
+        mediaController?.removeListener(//这是监听歌曲切换、播放/暂停的这种会改变ui的操作
+            //Activity 不可见后，这些 UI 状态更新没有意义。更关键的是：不注销会导致内存泄漏——playerListener 是匿名内部类，隐式持有 Activity 引用，
+            // 而 MediaController 又在 Service 端持有它。如果 Activity 重建（比如旋转屏幕），旧的 Activity 实例就永远无法被 GC 回收。
             playerListener
         )
 
         mediaController = null
+        // 断开 MediaController 引用，让 GC 可以回收 Activity 实例。如果不断开，Service 端的 MediaSession 会持有 MediaController，而 MediaController 又持有 Activity 的监听器引用。
 
         controllerFuture?.let {
             MediaController.releaseFuture(
                 it
             )
         }
+        // 释放异步连接的 Future 资源，避免后台线程泄漏。即使连接失败或已取消，也应该调用 releaseFuture() 进行清理。
 
         controllerFuture = null
 
         super.onStop()
     }
 
-    private fun connectMediaController() {
+    //建立与 PlaybackService 的连接，获取 MediaController
+    private fun connectMediaController() {//Step 2 — 创建 SessionToken（服务端的"地址"）
+        //SessionToken 封装了目标 Service 的身份信息。ComponentName 包含包名和 PlaybackService 的完整类名，告诉 Media3 框架要去连接哪个 Service
         val sessionToken =
             SessionToken(
                 this,
-                ComponentName(
+                ComponentName(//要连接的是 PlaybackService 这个服务。
                     this,
                     PlaybackService::class.java
                 )
             )
 
         val future =
-            MediaController.Builder(
+            MediaController.Builder(//Step3:异步创建 MediaController,相当于这时 MainActivity 就拿到了“遥控器”
                 this,
                 sessionToken
             ).buildAsync()
+        //buildAsync() 返回一个 ListenableFuture<MediaController>，不会阻塞主线程。此时框架内部会：
+        //  1. 解析 SessionToken 中的 ComponentName
+        //  2. 通过 bindService() 绑定到 PlaybackService
+        //  3. 如果 Service 还没启动，系统会先创建它
 
-        controllerFuture =
-            future
 
-        future.addListener(
+        controllerFuture = future// MediaController的引用
+        //持有"正在进行的异步连接操作"的引用，以便在 onStop() 时能取消它。
+        //假设用户在歌曲列表页刚点了一首歌，connectMediaController() 已经调用了 buildAsync()，
+        //但Service还没返回结果——此时用户立刻按 Home 键。
+        //如果不调用 releaseFuture()，连接完成后回调仍然会触发，尝试操作一个已经不存在的 Activity，导致崩溃或内存泄漏。
+
+        future.addListener(//Step 4 — 连接成功后的回调，获取 MediaController 实例
             {
                 try {
-                    val controller =
-                        future.get()
+                    val controller = future.get()//获取MediaController
+                    mediaController = controller
 
-                    mediaController =
-                        controller
 
-                    controller.addListener(
-                        playerListener
+                    controller.addListener(//注册播放状态监听
+                        playerListener//将播放器状态监听器连接到 MediaController
                     )
 
-                    applyPlayMode(
+                    applyPlayMode(//同步播放模式
                         controller,
                         musicViewModel
                             .uiState
                             .value
-                            .playMode
+                            .playMode//将应用设置的播放模式（单曲循环、列表循环、随机播放）应用到后台播放器
                     )
 
-                    syncCurrentSong(
-                        controller
+                    syncCurrentSong(//恢复当前歌曲信息
+                        controller//从后台播放器恢复当前播放的歌曲到应用 UI
+                        //在播放“晴天”，中途按home退出了，MainActivity进入后台，PlaybackService继续播放
+                        //重新打开APP，新 MainActivity 需要知道后台现在还在播放“晴天”。
                     )
 
                     syncControllerState(
-                        controller
+                        controller//同步播放器的播放状态、进度、时长到 ViewModel
                     )
 
-                    startProgressUpdates()
+                    startProgressUpdates()//启动定期更新播放进度的后台协程
 
                     Log.d(
                         "MainActivity",
@@ -344,13 +382,14 @@ class MainActivity : ComponentActivity() {
      * 点击歌曲时，把全部可播放歌曲设置成 ExoPlayer 队列，
      * 并从用户点击的歌曲开始播放。
      */
-    private fun playSongWithMedia3(
+    //核心播放逻辑：将歌曲列表转换为 MediaItem 队列
+    private fun playSongWithMedia3(//用户点击歌曲时触发：设置播放队列并开始播放
         song: Song
     ) {
-        val controller =
+        val controller =//检查有没有连接到后台播放器
             mediaController
 
-        if (controller == null) {
+        if (controller == null) {//没连接到后台播放器不能播放
             Log.w(
                 "MainActivity",
                 "MediaController 尚未连接"
@@ -363,7 +402,7 @@ class MainActivity : ComponentActivity() {
                 .uiState
                 .value
                 .songs
-                .mapNotNull {
+                .mapNotNull {//遍历歌曲列表，把整个可播放的歌曲列表转换成 MediaItem 队列（ExoPlayer播放队列）
                         currentSong ->
 
                     currentSong
@@ -377,7 +416,7 @@ class MainActivity : ComponentActivity() {
                         }
                 }
 
-        val startIndex =
+        val startIndex =//从对应播放歌曲下标开始播放
             playablePairs
                 .indexOfFirst {
                     it.first.id ==
@@ -405,7 +444,7 @@ class MainActivity : ComponentActivity() {
                 addToHistory = true
             )
 
-        controller.setMediaItems(
+        controller.setMediaItems(//把整个歌曲列表设置为播放队列 从startIndex开始 从歌曲 0 ms 开始播放
             mediaItems,
             startIndex,
             0L
@@ -423,8 +462,17 @@ class MainActivity : ComponentActivity() {
         controller.play()
     }
 
+    //切换播放/暂停状态//检查播放队列，如果为空则播放当前歌曲
     private fun togglePlayPause() {
-        val controller =
+        //MainActivity
+        //↓
+        //MediaController.pause()
+        //↓
+        //MediaSession
+        //↓
+        //ExoPlayer.pause()
+
+        val controller =//检查有没有连接到后台播放器
             mediaController
                 ?: return
 
@@ -447,6 +495,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    //播放上一首歌曲//如果播放队列为空则不做任何操作
     private fun playPrevious() {
         val controller =
             mediaController
@@ -460,6 +509,7 @@ class MainActivity : ComponentActivity() {
             .seekToPreviousMediaItem()
     }
 
+    //播放下一首歌曲//如果播放队列为空则不做任何操作
     private fun playNext() {
         val controller =
             mediaController
@@ -473,6 +523,7 @@ class MainActivity : ComponentActivity() {
             .seekToNextMediaItem()
     }
 
+    //快进/快退指定毫秒数//确保目标位置在歌曲时长范围内
     private fun seekBy(
         offsetMs: Long
     ) {
@@ -523,6 +574,7 @@ class MainActivity : ComponentActivity() {
             )
     }
 
+    //完成进度条拖动后的最终定位//将 ViewModel 中预览的进度应用到播放器
     private fun finishSeek() {
         val controller =
             mediaController
@@ -545,6 +597,7 @@ class MainActivity : ComponentActivity() {
             )
     }
 
+    //根据歌词文本定位到对应播放位置//找到歌词对应的时间点并跳转，如果暂停则自动开始播放
     private fun seekToLyric(
         lyricText: String
     ) {
@@ -573,6 +626,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    //调整播放音量//音量值限制在 0.0 到 1.0 之间
     private fun changeVolume(
         value: Float
     ) {
@@ -591,6 +645,7 @@ class MainActivity : ComponentActivity() {
             )
     }
 
+    //调整播放速度//播放速度限制在 0.5x 到 2.0x 之间
     private fun changePlaybackSpeed(
         speed: Float
     ) {
@@ -611,6 +666,7 @@ class MainActivity : ComponentActivity() {
             )
     }
 
+    //切换播放模式（单曲循环/列表循环/随机播放）//更新 ViewModel 并应用到播放器
     private fun changePlayMode() {
         musicViewModel
             .changePlayMode()
@@ -627,6 +683,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    //将应用播放模式应用到 MediaController//根据 PlayMode 枚举设置播放器的循环和随机模式
     private fun applyPlayMode(
         controller: MediaController,
         playMode: PlayMode
@@ -665,7 +722,8 @@ class MainActivity : ComponentActivity() {
      * Activity 重新进入前台时，
      * 从后台播放器恢复当前歌曲。
      */
-    private fun syncCurrentSong(
+    //同步当前播放的歌曲到应用 UI
+    private fun syncCurrentSong(//确保 Activity 重新进入前台时显示正确的当前歌曲
         controller: MediaController
     ) {
         val mediaItem =
@@ -693,6 +751,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    //根据 MediaItem 查找对应的 Song 对象//通过 mediaId 匹配歌曲 ID
     private fun findSongByMediaItem(
         mediaItem: MediaItem?
     ): Song? {
@@ -711,6 +770,7 @@ class MainActivity : ComponentActivity() {
             }
     }
 
+    //同步播放器状态到 ViewModel
     private fun syncControllerState(
         controller: MediaController
     ) {
@@ -740,6 +800,7 @@ class MainActivity : ComponentActivity() {
             )
     }
 
+    //启动定期更新播放进度的协程
     private fun startProgressUpdates() {
         progressJob?.cancel()
 
@@ -766,6 +827,7 @@ class MainActivity : ComponentActivity() {
             }
     }
 
+    //处理来自系统通知的点击意图
     private fun handlePlaybackIntent(
         intent: Intent?
     ) {
