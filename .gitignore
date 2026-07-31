@@ -111,6 +111,9 @@ gradle-app.setting
 .cxx/
 .externalNativeBuild/
 
+# Claude Code
+.claude/
+
 # VS Code
 .vscode/
 
