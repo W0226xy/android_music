@@ -34,7 +34,8 @@ fun MusicListScreen(//Compose 页面函数,1. uiState：界面显示所需的状
     onPlayPauseClick: () -> Unit,//点击底部迷你播放器里的播放 / 暂停按钮时调用。
     onPlayModeClick: () -> Unit,//点击播放模式按钮时调用
     onHistoryClick: () -> Unit, //点击播放历史按钮时调用
-    onOnlineMusicClick: () -> Unit//点击在线音乐
+    onOnlineMusicClick: () -> Unit,//点击在线音乐
+    onAddWidgetClick: () -> Unit = {}//添加桌面小组件
 
 ) {
     Scaffold(//标准页面布局容器
@@ -122,6 +123,16 @@ fun MusicListScreen(//Compose 页面函数,1. uiState：界面显示所需的状
                     onClick = onHistoryClick
                 ) {
                     Text("播放历史")
+                }
+
+                Spacer(
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+
+                Button(
+                    onClick = onAddWidgetClick
+                ) {
+                    Text("桌面小组件")
                 }
 
             }

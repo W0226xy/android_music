@@ -2,4 +2,7 @@
 <resources>
 
     <style name="Theme.MyApplication" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- 透明主题，用于 Widget 命令中转 Activity -->
+    <style name="Theme.Transparent" parent="android:Theme.Translucent.NoTitleBar" />
 </resources>

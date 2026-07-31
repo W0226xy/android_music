@@ -40,6 +40,7 @@ fun AutoMusicApp(
     onLyricClick: (String) -> Unit,
     onOnlineMusicClick: () -> Unit,
     onRefreshOnlineSongs: () -> Unit,
+    onAddWidgetClick: () -> Unit,
 
     // 每次点击系统媒体通知时，这个值都会变化。
     openPlayerRequest: Int = 0
@@ -88,7 +89,8 @@ fun AutoMusicApp(
 
                     currentScreen =
                         AppScreen.ONLINE_MUSIC
-                }
+                },
+                onAddWidgetClick = onAddWidgetClick
             )
         }
 

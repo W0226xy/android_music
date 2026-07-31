@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(env)",
+      "Bash(./gradlew --stop)",
+      "Bash(pkill -f \"GradleDaemon\")",
+      "Bash(JAVA_HOME=/usr/local/lib/jvm/jdk-21.0.12+8 ./gradlew tasks --warning-mode all)",
+      "Skill(run)",
+      "mcp__idea__list_directory_tree",
+      "Bash(adb devices *)",
+      "Bash(cd /home/wangmengyang/Software/android_music-master\\\\\\(2\\\\\\)/android_music-master)",
+      "Bash(export ANDROID_HOME=/home/wangmengyang/Software/sdk)",
+      "Bash(export JAVA_HOME=/usr/local/lib/jvm/jdk-21.0.12+8)",
+      "Bash(./gradlew assembleDebug)",
+      "Bash(unzip -l app/build/outputs/apk/debug/app-debug.apk)",
+      "Bash(unzip -p app/build/outputs/apk/debug/app-debug.apk AndroidManifest.xml)",
+      "Bash(sudo apt install -y adb)",
+      "Bash(sudo -S apt install -y adb)",
+      "Bash(adb install *)",
+      "Bash(adb -s b47d0b52 install -r app/build/outputs/apk/debug/app-debug.apk)",
+      "Bash(adb -s b47d0b52 logcat -c)",
+      "Bash(adb -s b47d0b52 logcat -d)",
+      "Bash(adb -s b47d0b52 shell dumpsys package com.example.myapplication)",
+      "Bash(adb -s b47d0b52 shell dumpsys appwidget)",
+      "Bash(adb -s b47d0b52 shell \"am force-stop com.miui.home && sleep 2 && am start -a android.intent.action.MAIN -c android.intent.category.HOME\")",
+      "Bash(adb -s b47d0b52 shell cmd appwidget list)",
+      "Bash(adb -s b47d0b52 shell \"dumpsys appwidget 2>&1\")",
+      "Bash(adb *)",
+      "Bash(./gradlew clean *)",
+      "Bash(awk '{print $1}')",
+      "Bash(netstat -tlnp)",
+      "Bash(sudo iptables -L INPUT -n)"
+    ]
+  }
+}

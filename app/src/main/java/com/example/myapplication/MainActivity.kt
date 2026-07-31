@@ -143,7 +143,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         //处理来自系统通知的点击事件
-        handlePlaybackIntent(intent)//用户是不是点击系统播放通知进入 App 的？ 如果是，就需要进入播放详情页。
+        handlePlaybackIntent(intent)
 
         setContent {
             MyApplicationTheme {//应用主题设置
@@ -250,6 +250,10 @@ class MainActivity : ComponentActivity() {
                         musicViewModel::
                         refreshOnlineSongs,
 
+                    onAddWidgetClick = {
+                        requestPinWidget()
+                    },
+
                     openPlayerRequest =
                         openPlayerRequest
                 )
@@ -268,36 +272,42 @@ class MainActivity : ComponentActivity() {
     }
 
     //Activity 进入前台后就开始连接后台播放器。（包括首次启动和从后台恢复）
-    override fun onStart() {//Step 1 — onStart() 触发连接
+    override fun onStart() {
         super.onStart()
-        connectMediaController()//连接 PlaybackService 中的媒体会话
+
+        // 如果已有连接（onStop 保留了），只需重新添加 Listener 并同步状态
+        val existing = mediaController
+        if (existing != null && existing.isConnected) {
+            Log.d("MainActivity", "复用已有 MediaController")
+            existing.addListener(playerListener)
+            syncCurrentSong(existing)
+            syncControllerState(existing)
+            startProgressUpdates()
+            return
+        }
+
+        connectMediaController()
     }
 
     //Activity 进入后台时清理资源
-    override fun onStop() {//onStop() 在 Activity 不再可见时触发——按 Home 键、切换到其他 App、或者新 Activity 覆盖当前页面。
-        // 注意它 不是 onDestroy()，所以 Activity 实例还在内存里，只是不可见。
-        progressJob?.cancel()//这是每500ms刷新进度的协程，可以关闭掉节省cpu（不显示ui了，不需要它的功能了）
+    override fun onStop() {
+        progressJob?.cancel()
         progressJob = null
 
-        mediaController?.removeListener(//这是监听歌曲切换、播放/暂停的这种会改变ui的操作
-            //Activity 不可见后，这些 UI 状态更新没有意义。更关键的是：不注销会导致内存泄漏——playerListener 是匿名内部类，隐式持有 Activity 引用，
-            // 而 MediaController 又在 Service 端持有它。如果 Activity 重建（比如旋转屏幕），旧的 Activity 实例就永远无法被 GC 回收。
-            playerListener
-        )
-
-        mediaController = null
-        // 断开 MediaController 引用，让 GC 可以回收 Activity 实例。如果不断开，Service 端的 MediaSession 会持有 MediaController，而 MediaController 又持有 Activity 的监听器引用。
-
-        controllerFuture?.let {
-            MediaController.releaseFuture(
-                it
-            )
-        }
-        // 释放异步连接的 Future 资源，避免后台线程泄漏。即使连接失败或已取消，也应该调用 releaseFuture() 进行清理。
-
-        controllerFuture = null
+        // 移除 Listener（避免 UI 刷新浪费资源），但保留 MediaController 连接
+        // 这样 Widget 操作后 App 回到前台仍能看到正确状态
+        mediaController?.removeListener(playerListener)
 
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // 真正释放 MediaController
+        mediaController?.removeListener(playerListener)
+        mediaController = null
+        controllerFuture?.let { MediaController.releaseFuture(it) }
+        controllerFuture = null
     }
 
     //建立与 PlaybackService 的连接，获取 MediaController
@@ -840,5 +850,30 @@ class MainActivity : ComponentActivity() {
             // 避免屏幕旋转或 Activity 重建时重复处理。
             intent.action = null
         }
+    }
+
+    /**
+     * 绕过 HyperOS/MIUI 的 Widget 过滤器，
+     * 直接将音乐 Widget 钉到桌面。
+     * Android 8.0+ 支持。
+     */
+    private fun requestPinWidget() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) {
+            return
+        }
+
+        val appWidgetManager = android.appwidget.AppWidgetManager.getInstance(this)
+        val componentName = android.content.ComponentName(
+            this,
+            com.example.myapplication.widget.MusicWidgetProvider::class.java
+        )
+
+        val pinned = appWidgetManager.requestPinAppWidget(
+            componentName,
+            null,
+            null
+        )
+
+        Log.d("MainActivity", "requestPinWidget result: $pinned")
     }
 }
