@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">My Application</string>
+    <string name="widget_description">桌面音乐控制组件，查看当前播放歌曲并进行播放控制</string>
+</resources>
