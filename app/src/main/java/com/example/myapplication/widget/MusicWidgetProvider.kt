@@ -48,6 +48,9 @@ class MusicWidgetProvider : AppWidgetProvider() {
 
         private val artworkCache = LruCache<String, Bitmap>(5)
 
+        // 保存每个widget最后一次播放位置
+        private val positionCache = mutableMapOf<Int, Long>()
+
         /**
          * 加载封面 Bitmap，支持本地（content:// / android.resource://）
          * 和网络（http:// / https://）两种来源。
@@ -142,10 +145,27 @@ class MusicWidgetProvider : AppWidgetProvider() {
         Log.d(TAG, "Widget 已启用")
     }
 
-    override fun onUpdate(context: Context, awm: AppWidgetManager, ids: IntArray) {
+    override fun onUpdate(
+        context: Context,
+        awm: AppWidgetManager,
+        ids: IntArray
+    ) {
         Log.d(TAG, "onUpdate: ${ids.size}")
         widgetCount = ids.size
-        for (id in ids) updateWidget(context, awm, id, "未在播放", "", false, "", 0L)
+
+        for (id in ids) {
+            updateWidget(
+                context,
+                awm,
+                id,
+                "未在播放",
+                "",
+                false,
+                "",
+                0L,
+                0L
+            )
+        }
     }
 
     override fun onDisabled(context: Context) {
@@ -167,23 +187,91 @@ class MusicWidgetProvider : AppWidgetProvider() {
 
         when (intent.action) {
             ACTION_PLAYBACK_STATE_CHANGED -> {
-                val songName  = intent.getStringExtra(EXTRA_SONG_NAME) ?: "未在播放"
-                val artist    = intent.getStringExtra(EXTRA_ARTIST) ?: ""
-                val isPlaying = intent.getBooleanExtra(EXTRA_IS_PLAYING, false)
-                val artwork   = intent.getStringExtra(EXTRA_ARTWORK_URI) ?: ""
-                val duration  = intent.getLongExtra(EXTRA_DURATION, 0L)
 
-                Log.d(TAG, "状态更新: $songName - $artist, playing=$isPlaying, widgets=${ids.size}")
+                val songName =
+                    intent.getStringExtra(EXTRA_SONG_NAME)
+                        ?: "未在播放"
 
-                for (id in ids) {
-                    updateWidget(context, awm, id, songName, artist, isPlaying, artwork, duration)
+                val artist =
+                    intent.getStringExtra(EXTRA_ARTIST)
+                        ?: ""
+
+                val isPlaying =
+                    intent.getBooleanExtra(
+                        EXTRA_IS_PLAYING,
+                        false
+                    )
+
+                val artwork =
+                    intent.getStringExtra(EXTRA_ARTWORK_URI)
+                        ?: ""
+
+                val duration =
+                    intent.getLongExtra(
+                        EXTRA_DURATION,
+                        0L
+                    )
+
+
+                var position =
+                    intent.getLongExtra(
+                        EXTRA_POSITION,
+                        -1L
+                    )
+
+
+                for(id in ids){
+
+                    // 防止错误0覆盖真实进度
+                    if(position <= 0 && positionCache.containsKey(id)){
+                        position = positionCache[id] ?: 0L
+                    }
+
+
+                    positionCache[id] = position
+
+
+                    updateWidget(
+                        context,
+                        awm,
+                        id,
+                        songName,
+                        artist,
+                        isPlaying,
+                        artwork,
+                        duration,
+                        position
+                    )
                 }
             }
 
             ACTION_PLAYBACK_PROGRESS -> {
-                val position = intent.getLongExtra(EXTRA_POSITION, 0L)
-                val duration = intent.getLongExtra(EXTRA_DURATION, 0L)
-                for (id in ids) updateProgress(context, awm, id, position, duration)
+
+                val position =
+                    intent.getLongExtra(
+                        EXTRA_POSITION,
+                        0L
+                    )
+
+                val duration =
+                    intent.getLongExtra(
+                        EXTRA_DURATION,
+                        0L
+                    )
+
+
+                for(id in ids){
+
+                    positionCache[id] = position
+
+                    updateProgress(
+                        context,
+                        awm,
+                        id,
+                        position,
+                        duration
+                    )
+                }
             }
         }
     }
@@ -193,7 +281,8 @@ class MusicWidgetProvider : AppWidgetProvider() {
     private fun updateWidget(
         context: Context, awm: AppWidgetManager, id: Int,
         songName: String, artist: String, isPlaying: Boolean,
-        artworkUri: String, duration: Long
+        artworkUri: String, duration: Long,
+        currentPosition: Long
     ) {
         val views = RemoteViews(context.packageName, R.layout.music_widget)
 
@@ -203,10 +292,19 @@ class MusicWidgetProvider : AppWidgetProvider() {
 
         // 时长
         views.setTextViewText(R.id.widget_time_total, formatTime(duration))
-        views.setTextViewText(R.id.widget_time_current, "00:00")
-        views.setProgressBar(R.id.widget_progress,
-            duration.coerceAtLeast(1L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), 0, false)
-
+        views.setTextViewText(
+            R.id.widget_time_current,
+            formatTime(currentPosition)
+        )
+        views.setProgressBar(
+            R.id.widget_progress,
+            duration.coerceAtLeast(1L)
+                .coerceAtMost(Int.MAX_VALUE.toLong())
+                .toInt(),
+            currentPosition.coerceAtMost(duration)
+                .toInt(),
+            false
+        )
         // 播放/暂停图标与命令
         val playAction = if (isPlaying) ACTION_WIDGET_PAUSE else ACTION_WIDGET_PLAY
         views.setImageViewResource(R.id.widget_btn_play_pause,

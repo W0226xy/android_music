@@ -28,8 +28,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_gravity="center_vertical">
+            android:orientation="vertical">
 
             <TextView
                 android:id="@+id/widget_song_name"
@@ -52,17 +51,21 @@
                 android:singleLine="true"
                 android:ellipsize="end"
                 android:layout_marginTop="2dp" />
+
         </LinearLayout>
+
     </LinearLayout>
 
-    <!-- 第二行：进度条 + 时间 + 快进/快退 -->
+
+    <!-- 第二行：进度条 -->
     <LinearLayout
         android:id="@+id/widget_progress_area"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="2"
+        android:layout_weight="1.5"
         android:orientation="horizontal"
         android:gravity="center_vertical">
+
 
         <TextView
             android:id="@+id/widget_time_current"
@@ -73,15 +76,6 @@
             android:textSize="11sp"
             android:gravity="center" />
 
-        <!-- 快退 10s -->
-        <ImageView
-            android:id="@+id/widget_btn_rewind"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:src="@drawable/ic_widget_previous"
-            android:background="@android:color/transparent"
-            android:scaleType="fitCenter"
-            android:padding="4dp" />
 
         <ProgressBar
             android:id="@+id/widget_progress"
@@ -89,20 +83,10 @@
             android:layout_width="0dp"
             android:layout_height="4dp"
             android:layout_weight="1"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
+            android:layout_marginHorizontal="6dp"
             android:max="100"
             android:progress="0" />
 
-        <!-- 快进 10s -->
-        <ImageView
-            android:id="@+id/widget_btn_forward"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:src="@drawable/ic_widget_next"
-            android:background="@android:color/transparent"
-            android:scaleType="fitCenter"
-            android:padding="4dp" />
 
         <TextView
             android:id="@+id/widget_time_total"
@@ -112,16 +96,33 @@
             android:textColor="#80FFFFFF"
             android:textSize="11sp"
             android:gravity="center" />
+
     </LinearLayout>
 
-    <!-- 第三行：控制按钮（均匀分布） -->
+
+    <!-- 第三行：五个控制按钮 -->
     <LinearLayout
+        android:id="@+id/widget_control_area"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="2"
         android:orientation="horizontal"
         android:gravity="center">
 
+
+        <!-- 快退10秒 -->
+        <ImageView
+            android:id="@+id/widget_btn_rewind"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:src="@drawable/ic_widget_rewind"
+            android:background="@android:color/transparent"
+            android:scaleType="centerInside"
+            android:padding="8dp" />
+
+
+        <!-- 上一首 -->
         <ImageView
             android:id="@+id/widget_btn_previous"
             android:layout_width="0dp"
@@ -129,8 +130,11 @@
             android:layout_weight="1"
             android:src="@drawable/ic_widget_previous"
             android:background="@android:color/transparent"
-            android:scaleType="centerInside" />
+            android:scaleType="centerInside"
+            android:padding="8dp" />
 
+
+        <!-- 播放暂停 -->
         <ImageView
             android:id="@+id/widget_btn_play_pause"
             android:layout_width="0dp"
@@ -138,8 +142,11 @@
             android:layout_weight="1"
             android:src="@drawable/ic_widget_play"
             android:background="@android:color/transparent"
-            android:scaleType="centerInside" />
+            android:scaleType="centerInside"
+            android:padding="4dp" />
 
+
+        <!-- 下一首 -->
         <ImageView
             android:id="@+id/widget_btn_next"
             android:layout_width="0dp"
@@ -147,7 +154,22 @@
             android:layout_weight="1"
             android:src="@drawable/ic_widget_next"
             android:background="@android:color/transparent"
-            android:scaleType="centerInside" />
+            android:scaleType="centerInside"
+            android:padding="8dp" />
+
+
+        <!-- 快进10秒 -->
+        <ImageView
+            android:id="@+id/widget_btn_forward"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:src="@drawable/ic_widget_forward"
+            android:background="@android:color/transparent"
+            android:scaleType="centerInside"
+            android:padding="8dp" />
+
+
     </LinearLayout>
 
 </LinearLayout>
