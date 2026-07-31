@@ -1,0 +1,8 @@
+{
+  "codeConnect": {
+    "parser": "compose",
+    "include": ["**/*.kt"],
+    "exclude": ["**/build/**"],
+    "figmaUrl": "https://www.figma.com/design/fKAhSxRLzkqUnmkWvRSXpp/Untitled"
+  }
+}

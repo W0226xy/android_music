@@ -1,51 +1,20 @@
 package com.example.myapplication.data
 
-import androidx.annotation.RawRes
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.Serializable
 
-
+@Serializable
 data class Song(
-
-    val id: Int,
-
-    val name: String,
-
-
-    // 对应服务器 artist 字段
-    @SerializedName("artist")
-    val singer: String,
-
-
+    val id: Int = 1000,
+    val name: String = "2002年的第一场雪",
+    val singer: String = "刀郎",
     val album: String = "未知专辑",
-
-
-    // ========== 本地资源 ==========
-
-    @RawRes
-    val audioResId: Int? = null,
-
-
-    @RawRes
-    val lyricResId: Int? = null,
-
-
-    // ========== 在线资源 ==========
-
-    val url: String? = null,
-
-
-    @SerializedName("cover_url")
-    val coverUrl: String? = null,
-
-
-    @SerializedName("lyric_url")
-    val lyricUrl: String? = null,
-
-
-    // 服务器真实ID（仅在线歌曲使用）
-    val serverId: Int? = null,
-
-    // 歌曲来源
-    val source: SongSource = SongSource.LOCAL
-
+    val audioUrl: String = "", // 音频网络地址
+    val lyricUrl: String = "" // 歌词网络地址
 )
+//
+//id = 1,
+//name = "2002年的第一场雪",
+//singer = "刀郎",
+//album = "未知专辑",
+//audioResId = R.raw.song_2002_first_snow,
+//lyricResId = R.raw.lrc_2002_first_snow

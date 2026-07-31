@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.10"
 }
 
 android {
@@ -51,18 +52,19 @@ dependencies {
 
     // Media3
     val media3Version = "1.10.1"
-
-    // ExoPlayer 播放器
     implementation("androidx.media3:media3-exoplayer:$media3Version")
-
-    // MediaSession、MediaController、后台播放服务
     implementation("androidx.media3:media3-session:$media3Version")
-
-
 
     // Glance AppWidget
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
+
+    // 网络请求 (kotlinx-serialization)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("io.coil-kt:coil-compose:2.4.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -71,12 +73,4 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-
-    // Retrofit网络请求
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-
-    // JSON解析
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-
-    implementation("io.coil-kt:coil-compose:2.6.0")
 }
