@@ -14,6 +14,8 @@ import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.LinearProgressIndicator
+import androidx.glance.appwidget.ProgressIndicatorDefaults
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
@@ -40,6 +42,9 @@ import com.example.myapplication.playback.ACTION_WIDGET_NEXT
 import com.example.myapplication.playback.ACTION_WIDGET_PAUSE
 import com.example.myapplication.playback.ACTION_WIDGET_PLAY
 import com.example.myapplication.playback.ACTION_WIDGET_PREVIOUS
+import com.example.myapplication.playback.ACTION_WIDGET_SEEK_BACK
+import com.example.myapplication.playback.ACTION_WIDGET_SEEK_FWD
+import com.example.myapplication.playback.formatTime
 
 // ══ Intent ══
 
@@ -67,10 +72,10 @@ class MusicGlanceWidget : GlanceAppWidget() {
     }
 }
 
-// ═══════════════════════════════════════════════════════
-// 主布局  QQ 音乐风格：横向 封面 | 歌名/歌手/按钮
-// 可用 ≈ 260×90 (280×110 - 10padding)
-// ═══════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
+// 完整播放器卡片  300×175dp
+// 外层 8dp padding → 卡片 284×159 → 卡片内 264×139 (10dp padding)
+// ═════════════════════════════════════════════════════════════
 
 @Composable
 private fun MusicWidget(context: Context) {
@@ -78,30 +83,68 @@ private fun MusicWidget(context: Context) {
     val artist      = currentState(WidgetStateKeys.artist) ?: ""
     val isPlaying   = currentState(WidgetStateKeys.isPlaying) ?: false
     val artworkPath = currentState(WidgetStateKeys.artworkPath) ?: ""
+    val duration    = currentState(WidgetStateKeys.duration) ?: 0L
+    val position    = currentState(WidgetStateKeys.position) ?: 0L
 
-    // Box 填充整个 Widget，内部居中
+    // 外层居中
     Box(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .background(GlanceTheme.colors.surface)
-            .padding(12.dp)
-            .clickable(actionStartActivity(openApp(context))),
+        modifier = GlanceModifier.fillMaxSize().padding(6.dp),
         contentAlignment = Alignment.Center
     ) {
-        Row(
-            modifier = GlanceModifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        // 卡片
+        Column(
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .cornerRadius(16.dp)
+                .background(GlanceTheme.colors.surface)
+                .padding(12.dp)
+                .clickable(actionStartActivity(openApp(context)))
         ) {
-            // ── 左侧：封面 60dp ──
-            AlbumArt(artworkPath)
-            Spacer(modifier = GlanceModifier.width(12.dp))
-            // ── 右侧：歌名 + 歌手 + 按钮 ──
-            InfoAndControls(context, songName, artist, isPlaying)
+            // ── 顶部：封面 + 歌曲信息 ──
+            HeaderRow(artworkPath, songName, artist)
+            SpacerH(8)
+            // ── 中部：进度条 ──
+            ProgressRow(position, duration)
+            SpacerH(6)
+            // ── 底部：5 控制按钮 ──
+            ControlRow(context, isPlaying)
         }
     }
 }
 
-// ═══════ 封面 ═══════
+@Composable private fun SpacerH(h: Int) = Spacer(modifier = GlanceModifier.height(h.dp))
+
+// ═══════════════════ 顶部：封面 56 + 间距 10 + 文字 ═══════════════════
+
+@Composable
+private fun HeaderRow(artworkPath: String, songName: String, artist: String) {
+    Row(
+        modifier = GlanceModifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 封面 56dp 圆角
+        AlbumArt(artworkPath)
+        Spacer(modifier = GlanceModifier.width(10.dp))
+        // 歌名 + 歌手
+        Column(modifier = GlanceModifier.fillMaxWidth()) {
+            Text(
+                text = songName,
+                style = TextStyle(
+                    color = GlanceTheme.colors.onSurface,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                ),
+                maxLines = 1
+            )
+            SpacerH(2)
+            Text(
+                text = artist.ifEmpty { " " },
+                style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 12.sp),
+                maxLines = 1
+            )
+        }
+    }
+}
 
 @Composable
 private fun AlbumArt(artworkPath: String) {
@@ -111,9 +154,8 @@ private fun AlbumArt(artworkPath: String) {
         } catch (_: Exception) { null }
         else -> null
     }
-
     Box(
-        modifier = GlanceModifier.size(60.dp).cornerRadius(6.dp)
+        modifier = GlanceModifier.size(56.dp).cornerRadius(8.dp)
             .background(GlanceTheme.colors.primaryContainer),
         contentAlignment = Alignment.Center
     ) {
@@ -121,60 +163,84 @@ private fun AlbumArt(artworkPath: String) {
     }
 }
 
-// ═══════ 右侧：信息 + 控制 ═══════
+// ═══════════════════ 中部：时间 + 进度条 + 时间 ═══════════════════
 
 @Composable
-private fun InfoAndControls(
-    context: Context, songName: String, artist: String, isPlaying: Boolean
-) {
-    Column(modifier = GlanceModifier.fillMaxWidth()) {
-        // 歌名
+private fun ProgressRow(position: Long, duration: Long) {
+    val progress = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
+
+    Row(
+        modifier = GlanceModifier.fillMaxWidth().height(24.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 当前时间
         Text(
-            text = songName,
-            style = TextStyle(
-                color = GlanceTheme.colors.onSurface,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
-            ),
-            maxLines = 1
+            text = formatTime(position),
+            style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 11.sp),
+            modifier = GlanceModifier.width(34.dp)
         )
-        Spacer(modifier = GlanceModifier.height(2.dp))
-        // 歌手
+        // 进度条
+        Box(
+            modifier = GlanceModifier.fillMaxWidth().height(24.dp).padding(horizontal = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            LinearProgressIndicator(
+                progress = progress,
+                modifier = GlanceModifier.fillMaxWidth().height(4.dp),
+                color = ProgressIndicatorDefaults.IndicatorColorProvider,
+                backgroundColor = ProgressIndicatorDefaults.BackgroundColorProvider
+            )
+        }
+        // 总时长
         Text(
-            text = artist.ifEmpty { " " },
-            style = TextStyle(
-                color = GlanceTheme.colors.onSurface,
-                fontSize = 12.sp
-            ),
-            maxLines = 1
+            text = formatTime(duration),
+            style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 11.sp),
+            modifier = GlanceModifier.width(34.dp)
         )
-        Spacer(modifier = GlanceModifier.height(10.dp))
-        // 控制按钮行  (可用宽 ≈ 188dp, 3 × 60 = 180)
-        ControlRow(context, isPlaying)
     }
 }
 
-// ═══════ 控制按钮 ═══════
+// ═══════════════════ 底部：5 控制按钮 ═══════════════════
+// ⏮  ◁◁  ▶/⏸  ▷▷  ⏭
 
 @Composable
 private fun ControlRow(context: Context, isPlaying: Boolean) {
-    val action = if (isPlaying) ACTION_WIDGET_PAUSE else ACTION_WIDGET_PLAY
-    val icon   = if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
+    val ppAction = if (isPlaying) ACTION_WIDGET_PAUSE else ACTION_WIDGET_PLAY
+    val ppIcon   = if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
 
     Row(
-        modifier = GlanceModifier.fillMaxWidth().height(36.dp),
+        modifier = GlanceModifier.fillMaxWidth().height(42.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Btn(context, 60.dp, R.drawable.ic_widget_previous, ACTION_WIDGET_PREVIOUS)
-        Btn(context, 60.dp, icon, action)
-        Btn(context, 60.dp, R.drawable.ic_widget_next, ACTION_WIDGET_NEXT)
+        // 上一首 ⏮
+        IconBtn(context, 52.dp, R.drawable.ic_widget_previous, ACTION_WIDGET_PREVIOUS)
+        // 后退10s ◁◁
+        IconBtn(context, 52.dp, R.drawable.ic_widget_rewind, ACTION_WIDGET_SEEK_BACK)
+        // 播放/暂停 ▶/⏸ (绿色高亮)
+        Box(
+            modifier = GlanceModifier.width(52.dp).height(42.dp)
+                .clickable(actionStartActivity(cmd(context, ppAction))),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                provider = ImageProvider(ppIcon),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(ProgressIndicatorDefaults.IndicatorColorProvider)
+            )
+        }
+        // 前进10s ▷▷
+        IconBtn(context, 52.dp, R.drawable.ic_widget_forward, ACTION_WIDGET_SEEK_FWD)
+        // 下一首 ⏭
+        IconBtn(context, 52.dp, R.drawable.ic_widget_next, ACTION_WIDGET_NEXT)
     }
 }
 
 @Composable
-private fun Btn(context: Context, w: androidx.compose.ui.unit.Dp, icon: Int, action: String) {
+private fun IconBtn(
+    context: Context, w: androidx.compose.ui.unit.Dp, icon: Int, action: String
+) {
     Box(
-        modifier = GlanceModifier.width(w).height(36.dp)
+        modifier = GlanceModifier.width(w).height(42.dp)
             .clickable(actionStartActivity(cmd(context, action))),
         contentAlignment = Alignment.Center
     ) {
