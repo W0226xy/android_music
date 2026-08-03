@@ -69,8 +69,10 @@ class AudioFocusManager(
             when (focusChange) {
                 AudioManager.AUDIOFOCUS_GAIN -> {
                     hasFocus = true
-                    transientLoss = false
+                    // 先回调再清除 transientLoss，
+                    // 确保 shouldResumeOnGain() 能读到正确的历史状态
                     callback.onFocusGained()
+                    transientLoss = false
                 }
 
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
